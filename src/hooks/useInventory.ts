@@ -56,6 +56,7 @@ function mapSale(row: DbSale, items: DbSaleItem[]): Sale {
   };
 }
 
+// Inventory management hook
 export function useInventory() {
   const [products, setProducts] = useState<Product[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
