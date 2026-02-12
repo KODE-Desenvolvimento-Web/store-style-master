@@ -34,6 +34,29 @@ export interface InventoryLog {
   timestamp: Date;
 }
 
+export interface Sale {
+  id: string;
+  items: SaleItem[];
+  subtotal: number;
+  discount: number;
+  total: number;
+  paymentMethod: 'cash' | 'card' | 'pix';
+  cashReceived?: number;
+  change?: number;
+  customerName?: string;
+  createdAt: Date;
+}
+
+export interface SaleItem {
+  variantId: string;
+  productId: string;
+  productName: string;
+  variantLabel: string;
+  sku: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export interface Alert {
   id: string;
   type: 'low_stock' | 'out_of_stock' | 'new_arrival' | 'price_change';
