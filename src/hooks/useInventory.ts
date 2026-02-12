@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
-import { Product, Alert, ProductVariant, InventoryLog } from '@/types/inventory';
+import { Product, Alert, ProductVariant, InventoryLog, Sale, SaleItem } from '@/types/inventory';
 import { mockProducts, mockAlerts, mockInventoryLogs } from '@/data/mockData';
 
 export function useInventory() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
   const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>(mockInventoryLogs);
+  const [sales, setSales] = useState<Sale[]>([]);
 
   const addProduct = useCallback((product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newProduct: Product = {
@@ -123,6 +124,24 @@ export function useInventory() {
     setInventoryLogs(prev => [...newLogs, ...prev]);
   }, []);
 
+  const registerSale = useCallback((sale: Omit<Sale, 'id' | 'createdAt'>) => {
+    const newSale: Sale = {
+      ...sale,
+      id: String(Date.now()),
+      createdAt: new Date(),
+    };
+    setSales(prev => [newSale, ...prev]);
+
+    // Process stock out
+    const items = sale.items.map(i => ({
+      productId: i.productId,
+      variantId: i.variantId,
+      quantity: i.quantity,
+    }));
+    processOperation(items, 'OUT', `Venda #${newSale.id.slice(-6)}${sale.customerName ? ` — ${sale.customerName}` : ''}`);
+    return newSale;
+  }, [processOperation]);
+
   const markAlertRead = useCallback((alertId: string) => {
     setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a));
   }, []);
@@ -145,14 +164,22 @@ export function useInventory() {
   const outOfStockCount = products.reduce((sum, p) => sum + p.variants.filter(v => v.currentStock === 0).length, 0);
   const unreadAlerts = alerts.filter(a => !a.read).length;
 
+  const todaySales = sales.filter(s => {
+    const today = new Date();
+    return s.createdAt.toDateString() === today.toDateString();
+  });
+  const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0);
+
   return {
     products,
     alerts,
     inventoryLogs,
+    sales,
     addProduct,
     deleteProduct,
     updateVariantStock,
     processOperation,
+    registerSale,
     markAlertRead,
     markAllAlertsRead,
     findByBarcode,
@@ -161,5 +188,7 @@ export function useInventory() {
     lowStockCount,
     outOfStockCount,
     unreadAlerts,
+    todaySales,
+    todayRevenue,
   };
 }
