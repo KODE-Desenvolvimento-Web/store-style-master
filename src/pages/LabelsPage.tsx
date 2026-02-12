@@ -1,25 +1,49 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useInventoryContext } from '@/contexts/InventoryContext';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Printer, Tags } from 'lucide-react';
+import { Printer, Tags, CheckSquare, Square, Search } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 
 export default function LabelsPage() {
   const { products } = useInventoryContext();
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [searchProduct, setSearchProduct] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedProduct = products.find(p => p.id === selectedProductId);
 
+  const filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes(searchProduct.toLowerCase()) ||
+    p.reference.toLowerCase().includes(searchProduct.toLowerCase())
+  );
+
   const toggleItem = (id: string) => {
-    setSelectedItems(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+    setSelectedItems(prev => {
+      const next = prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id];
+      if (!prev.includes(id) && !quantities[id]) {
+        setQuantities(q => ({ ...q, [id]: 1 }));
+      }
+      return next;
+    });
   };
 
   const selectAll = () => {
     if (!selectedProduct) return;
-    setSelectedItems(selectedProduct.variants.map(v => v.id));
+    const allIds = selectedProduct.variants.map(v => v.id);
+    setSelectedItems(allIds);
+    const newQty: Record<string, number> = {};
+    allIds.forEach(id => { newQty[id] = quantities[id] || 1; });
+    setQuantities(q => ({ ...q, ...newQty }));
+  };
+
+  const deselectAll = () => setSelectedItems([]);
+
+  const setQty = (id: string, qty: number) => {
+    setQuantities(prev => ({ ...prev, [id]: Math.max(1, Math.min(50, qty)) }));
   };
 
   useEffect(() => {
@@ -30,18 +54,21 @@ export default function LabelsPage() {
         try {
           JsBarcode(canvas, code, {
             format: 'CODE128',
-            width: 1.5,
-            height: 40,
+            width: 1.2,
+            height: 36,
             displayValue: true,
-            fontSize: 10,
-            margin: 4,
+            fontSize: 9,
+            margin: 2,
+            background: 'transparent',
           });
         } catch (e) {
           console.error('Barcode error:', e);
         }
       }
     });
-  }, [selectedItems, selectedProductId]);
+  }, [selectedItems, selectedProductId, quantities]);
+
+  const totalLabels = selectedItems.reduce((sum, id) => sum + (quantities[id] || 1), 0);
 
   const handlePrint = () => {
     const printContent = containerRef.current;
@@ -51,110 +78,208 @@ export default function LabelsPage() {
     w.document.write(`
       <html><head><title>Etiquetas - StockWear</title>
       <style>
-        body { margin: 0; padding: 20px; font-family: 'Inter', Arial, sans-serif; }
-        .labels-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        .label { border: 1px dashed #ccc; padding: 12px; text-align: center; page-break-inside: avoid; }
-        .label h4 { margin: 0 0 4px; font-size: 12px; font-weight: 600; }
-        .label p { margin: 2px 0; font-size: 10px; color: #666; }
-        .label .price { font-size: 14px; font-weight: 700; margin-top: 4px; }
-        @media print { .labels-grid { grid-template-columns: repeat(3, 1fr); } }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', Arial, sans-serif; padding: 10px; }
+        .labels-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+        .label {
+          width: 180px; border: 1px solid #ddd; border-radius: 6px;
+          padding: 8px 6px; text-align: center; page-break-inside: avoid;
+          background: #fff;
+        }
+        .label .brand { font-size: 7px; text-transform: uppercase; letter-spacing: 1.5px; color: #999; margin-bottom: 2px; }
+        .label .name { font-size: 10px; font-weight: 600; margin-bottom: 1px; }
+        .label .info { font-size: 8px; color: #777; }
+        .label .price { font-size: 16px; font-weight: 700; margin-top: 3px; }
+        .label canvas { display: block; margin: 4px auto; }
+        @media print {
+          body { padding: 0; }
+          .label { border: 1px solid #ccc; }
+        }
       </style></head><body>
       ${printContent.innerHTML}
       </body></html>
     `);
     w.document.close();
-    w.print();
+    setTimeout(() => w.print(), 300);
   };
 
-  const itemsToRender = selectedProduct?.variants.filter(v => selectedItems.includes(v.id)) || [];
+  // Build labels array with quantities
+  const labelsToRender: { variantId: string; index: number }[] = [];
+  if (selectedProduct) {
+    for (const id of selectedItems) {
+      const qty = quantities[id] || 1;
+      for (let i = 0; i < qty; i++) {
+        labelsToRender.push({ variantId: id, index: i });
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-heading font-bold">Gerador de Etiquetas</h1>
-        <p className="text-muted-foreground mt-1">Gere etiquetas com código de barras para seus produtos</p>
+        <p className="text-muted-foreground mt-1">Selecione produtos e variações para gerar etiquetas com código de barras</p>
       </div>
 
-      <div className="glass-card rounded-xl p-6 space-y-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="w-72">
-            <label className="text-sm font-medium mb-1.5 block">Produto</label>
-            <Select value={selectedProductId} onValueChange={v => { setSelectedProductId(v); setSelectedItems([]); }}>
-              <SelectTrigger><SelectValue placeholder="Selecione um produto" /></SelectTrigger>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left panel: Selection */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <h3 className="font-semibold text-sm">1. Selecione o Produto</h3>
+            <Select value={selectedProductId} onValueChange={v => { setSelectedProductId(v); setSelectedItems([]); setQuantities({}); }}>
+              <SelectTrigger><SelectValue placeholder="Escolha um produto" /></SelectTrigger>
               <SelectContent>
-                {products.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.reference} — {p.name}</SelectItem>
+                <div className="px-2 pb-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar..."
+                      value={searchProduct}
+                      onChange={e => setSearchProduct(e.target.value)}
+                      className="h-8 pl-7 text-xs"
+                    />
+                  </div>
+                </div>
+                {filteredProducts.map(p => (
+                  <SelectItem key={p.id} value={p.id}>
+                    <span className="font-mono text-xs text-muted-foreground mr-2">{p.reference}</span>
+                    {p.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+
           {selectedProduct && (
-            <Button variant="outline" size="sm" onClick={selectAll}>
-              Selecionar Todos
-            </Button>
+            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm">2. Variações</h3>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={selectAll} className="text-xs h-7 px-2">
+                    <CheckSquare className="w-3 h-3 mr-1" /> Todos
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={deselectAll} className="text-xs h-7 px-2">
+                    <Square className="w-3 h-3 mr-1" /> Nenhum
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+                {selectedProduct.variants.map(variant => {
+                  const isSelected = selectedItems.includes(variant.id);
+                  return (
+                    <div
+                      key={variant.id}
+                      className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/30'
+                      }`}
+                      onClick={() => toggleItem(variant.id)}
+                    >
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${
+                        isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/30'
+                      }`}>
+                        {isSelected && <span className="text-primary-foreground text-[10px] font-bold">✓</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium">{variant.color} · {variant.size}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono">{variant.sku}</p>
+                      </div>
+                      {isSelected && (
+                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                          <span className="text-[10px] text-muted-foreground">Qtd:</span>
+                          <Input
+                            type="number"
+                            value={quantities[variant.id] || 1}
+                            onChange={e => setQty(variant.id, parseInt(e.target.value) || 1)}
+                            className="w-14 h-7 text-xs text-center"
+                            min={1}
+                            max={50}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {selectedItems.length > 0 && (
+                <div className="pt-2 border-t border-border">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-muted-foreground">
+                      {selectedItems.length} variação(ões) · {totalLabels} etiqueta(s)
+                    </span>
+                  </div>
+                  <Button onClick={handlePrint} className="w-full gap-2">
+                    <Printer className="w-4 h-4" />
+                    Imprimir {totalLabels} Etiqueta(s)
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
-        {selectedProduct && (
-          <div>
-            <p className="text-sm font-medium mb-2">Selecione as variações:</p>
-            <div className="flex flex-wrap gap-2">
-              {selectedProduct.variants.map(variant => (
-                <button
-                  key={variant.id}
-                  onClick={() => toggleItem(variant.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    selectedItems.includes(variant.id)
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-card border-border text-muted-foreground hover:border-primary/50'
-                  }`}
-                >
-                  {variant.color} · {variant.size}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {selectedItems.length > 0 && (
-          <div className="flex gap-2">
-            <Button onClick={handlePrint} className="gap-2">
-              <Printer className="w-4 h-4" />
-              Imprimir Etiquetas ({selectedItems.length})
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {itemsToRender.length > 0 && selectedProduct && (
-        <div className="glass-card rounded-xl p-6">
-          <h3 className="text-lg font-heading font-semibold mb-4">Pré-visualização</h3>
-          <div ref={containerRef}>
-            <div className="labels-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {itemsToRender.map(variant => (
-                <div key={variant.id} className="label border border-dashed border-border rounded-lg p-4 text-center bg-card">
-                  <h4 className="text-xs font-bold truncate">{selectedProduct.name}</h4>
-                  <p className="text-xs text-muted-foreground">Ref: {selectedProduct.reference}</p>
-                  <p className="text-xs text-muted-foreground">{variant.color} · Tam: {variant.size}</p>
-                  <p className="text-[10px] font-mono text-muted-foreground">SKU: {variant.sku}</p>
-                  <div className="my-2 flex justify-center">
-                    <canvas data-barcode={variant.barcode} />
-                  </div>
-                  <p className="price text-lg font-heading font-bold">R$ {selectedProduct.salePrice.toFixed(2)}</p>
+        {/* Right panel: Preview */}
+        <div className="lg:col-span-2">
+          {labelsToRender.length > 0 && selectedProduct ? (
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-sm">Pré-visualização</h3>
+                <span className="text-xs text-muted-foreground">{totalLabels} etiqueta(s)</span>
+              </div>
+              <div ref={containerRef} className="bg-muted/30 rounded-lg p-4">
+                <div className="labels-grid flex flex-wrap gap-3">
+                  {labelsToRender.map(({ variantId, index }) => {
+                    const variant = selectedProduct.variants.find(v => v.id === variantId);
+                    if (!variant) return null;
+                    return (
+                      <div
+                        key={`${variantId}-${index}`}
+                        className="label bg-card border border-border rounded-lg p-3 text-center shadow-sm"
+                        style={{ width: 180 }}
+                      >
+                        <p className="text-[7px] uppercase tracking-[1.5px] text-muted-foreground mb-0.5">
+                          {selectedProduct.brand}
+                        </p>
+                        <h4 className="text-[11px] font-semibold truncate">{selectedProduct.name}</h4>
+                        <p className="text-[9px] text-muted-foreground">
+                          {variant.color} · Tam {variant.size}
+                        </p>
+                        <p className="text-[8px] font-mono text-muted-foreground">
+                          Ref: {selectedProduct.reference}
+                        </p>
+                        <div className="my-1.5 flex justify-center">
+                          <canvas data-barcode={variant.barcode} />
+                        </div>
+                        <p className="text-base font-heading font-bold">
+                          R$ {selectedProduct.salePrice.toFixed(2)}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="rounded-xl border border-border bg-card flex items-center justify-center py-20">
+              <div className="text-center text-muted-foreground">
+                <Tags className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                <p className="text-lg font-medium">
+                  {!selectedProductId ? 'Selecione um produto' : 'Selecione variações'}
+                </p>
+                <p className="text-sm mt-1">
+                  {!selectedProductId
+                    ? 'Escolha um produto no painel ao lado para começar.'
+                    : 'Marque as variações que deseja imprimir.'}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-
-      {!selectedProductId && (
-        <div className="text-center py-16 text-muted-foreground">
-          <Tags className="w-16 h-16 mx-auto mb-4 opacity-20" />
-          <p className="text-lg font-medium">Selecione um produto</p>
-          <p className="text-sm mt-1">Escolha um produto acima para gerar etiquetas com código de barras.</p>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
