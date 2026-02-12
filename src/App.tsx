@@ -3,7 +3,13 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { InventoryProvider } from "@/contexts/InventoryContext";
+import AppLayout from "@/components/AppLayout";
+import DashboardPage from "./pages/DashboardPage";
+import ProductsPage from "./pages/ProductsPage";
+import LabelsPage from "./pages/LabelsPage";
+import ReaderPage from "./pages/ReaderPage";
+import AlertsPage from "./pages/AlertsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -14,11 +20,18 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <InventoryProvider>
+          <AppLayout>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/produtos" element={<ProductsPage />} />
+              <Route path="/etiquetas" element={<LabelsPage />} />
+              <Route path="/leitor" element={<ReaderPage />} />
+              <Route path="/avisos" element={<AlertsPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AppLayout>
+        </InventoryProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
