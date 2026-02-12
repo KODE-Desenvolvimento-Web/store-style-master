@@ -41,15 +41,24 @@ export default function ProductGrid({ product }: Props) {
                         >
                           <Minus className="w-3 h-3" />
                         </button>
-                        <span className={`w-8 text-center font-mono font-bold ${
-                          variant.currentStock === 0 
-                            ? 'text-destructive' 
-                            : variant.currentStock <= product.minStockThreshold 
-                              ? 'text-warning' 
-                              : 'text-foreground'
-                        }`}>
-                          {variant.currentStock}
-                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={variant.currentStock}
+                          onChange={e => {
+                            const val = parseInt(e.target.value);
+                            if (!isNaN(val) && val >= 0) {
+                              updateVariantStock(product.id, variant.id, val);
+                            }
+                          }}
+                          className={`w-12 text-center font-mono font-bold bg-card border border-border rounded h-7 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                            variant.currentStock === 0 
+                              ? 'text-destructive' 
+                              : variant.currentStock <= product.minStockThreshold 
+                                ? 'text-warning' 
+                                : 'text-foreground'
+                          }`}
+                        />
                         <button
                           onClick={() => updateVariantStock(product.id, variant.id, variant.currentStock + 1)}
                           className="w-6 h-6 rounded bg-muted flex items-center justify-center hover:bg-muted-foreground/20 transition-colors"
