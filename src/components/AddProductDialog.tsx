@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useInventoryContext } from '@/contexts/InventoryContext';
 import { SIZES, ProductVariant } from '@/types/inventory';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Upload, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface Props {
   open: boolean;
@@ -34,6 +37,7 @@ interface VariantDraft {
 export default function AddProductDialog({ open, onOpenChange }: Props) {
   const { addProduct, categories, colors } = useInventoryContext();
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [brand, setBrand] = useState('');
   const [salePrice, setSalePrice] = useState('');
@@ -42,6 +46,10 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([]);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleSize = (size: string) => {
     const next = selectedSizes.includes(size) ? selectedSizes.filter(s => s !== size) : [...selectedSizes, size];
@@ -80,8 +88,51 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
     updateDraft(idx, 'barcode', generateBarcode());
   };
 
-  const handleSubmit = () => {
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Selecione um arquivo de imagem');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Imagem deve ter no máximo 5MB');
+      return;
+    }
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const uploadImage = async (): Promise<string> => {
+    if (!imageFile) return '';
+    const ext = imageFile.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from('product-images').upload(fileName, imageFile);
+    if (error) {
+      console.error('Upload error', error);
+      toast.error('Erro ao fazer upload da imagem');
+      return '';
+    }
+    const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(fileName);
+    return urlData.publicUrl;
+  };
+
+  const handleSubmit = async () => {
     if (!name || !category || !brand || !salePrice || variantDrafts.length === 0) return;
+
+    setUploading(true);
+    let imageUrl = '';
+    if (imageFile) {
+      imageUrl = await uploadImage();
+    }
 
     const prefix = category.slice(0, 3).toUpperCase();
     const reference = `${prefix}-${String(Date.now()).slice(-4)}`;
@@ -97,9 +148,11 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
       currentStock: d.initialStock,
     }));
 
-    addProduct({
+    await addProduct({
       reference,
       name,
+      description,
+      imageUrl,
       category,
       brand,
       salePrice: parseFloat(salePrice),
@@ -110,6 +163,7 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
 
     // Reset
     setName('');
+    setDescription('');
     setCategory('');
     setBrand('');
     setSalePrice('');
@@ -117,6 +171,8 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
     setSelectedSizes([]);
     setSelectedColors([]);
     setVariantDrafts([]);
+    removeImage();
+    setUploading(false);
     onOpenChange(false);
   };
 
@@ -127,10 +183,55 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
           <DialogTitle className="font-heading">Novo Produto</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
+          {/* Image Upload */}
+          <div>
+            <Label className="mb-2 block">Imagem do Produto</Label>
+            <div className="flex items-start gap-4">
+              {imagePreview ? (
+                <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border shrink-0">
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  <button
+                    onClick={removeImage}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-24 h-24 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors shrink-0"
+                >
+                  <Upload className="w-5 h-5" />
+                  <span className="text-xs">Upload</span>
+                </button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                JPG, PNG ou WebP. Máximo 5MB.
+              </p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <Label>Nome do Produto</Label>
               <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Camiseta Básica" />
+            </div>
+            <div className="col-span-2">
+              <Label>Descrição</Label>
+              <Textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Descrição do produto (opcional)"
+                rows={3}
+              />
             </div>
             <div>
               <Label>Categoria</Label>
@@ -252,8 +353,8 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
             </div>
           )}
 
-          <Button onClick={handleSubmit} className="w-full" disabled={!name || !category || !brand || !salePrice || variantDrafts.length === 0}>
-            Cadastrar Produto
+          <Button onClick={handleSubmit} className="w-full" disabled={uploading || !name || !category || !brand || !salePrice || variantDrafts.length === 0}>
+            {uploading ? 'Cadastrando...' : 'Cadastrar Produto'}
           </Button>
         </div>
       </DialogContent>

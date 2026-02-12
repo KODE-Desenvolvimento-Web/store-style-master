@@ -115,15 +115,22 @@ export default function ProductsPage() {
                   onClick={() => setExpandedId(isExpanded ? null : product.id)}
                   className="flex items-center gap-4 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
                 >
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-bold text-primary">{product.reference.split('-')[0]}</span>
-                  </div>
+                  {product.imageUrl ? (
+                    <img src={product.imageUrl} alt={product.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-primary">{product.reference.split('-')[0]}</span>
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold truncate">{product.name}</h3>
                       <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{product.reference}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">{product.brand} · {product.category} · R$ {product.salePrice.toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {product.brand} · {product.category} · R$ {product.salePrice.toFixed(2)}
+                      {product.description && <span className="ml-1 text-xs">· {product.description.slice(0, 60)}{product.description.length > 60 ? '…' : ''}</span>}
+                    </p>
                   </div>
                 </button>
                 <div className="flex items-center gap-3 shrink-0">
