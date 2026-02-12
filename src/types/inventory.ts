@@ -144,6 +144,13 @@ export interface Category {
   createdAt: Date;
 }
 
+export interface ColorItem {
+  id: string;
+  name: string;
+  hex: string;
+  createdAt: Date;
+}
+
 export const SIZES = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'EG'] as const;
 export const COLORS = [
   { name: 'Branco', hex: '#FFFFFF' },
