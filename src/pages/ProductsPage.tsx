@@ -1,26 +1,26 @@
 import { useState } from 'react';
 import { useInventoryContext } from '@/contexts/InventoryContext';
-import { Search, Plus, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronUp, Trash2, Settings2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import ProductGrid from '@/components/ProductGrid';
 import AddProductDialog from '@/components/AddProductDialog';
-import { CATEGORIES } from '@/types/inventory';
+import ManageCategoriesDialog from '@/components/ManageCategoriesDialog';
 import { Package } from 'lucide-react';
 
 type StockFilter = 'all' | 'critical' | 'low' | 'ok' | 'excess';
 
 export default function ProductsPage() {
-  const { products, deleteProduct } = useInventoryContext();
+  const { products, categories, deleteProduct } = useInventoryContext();
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [brandFilter, setBrandFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
-
+  const [showCategories, setShowCategories] = useState(false);
   const brands = [...new Set(products.map(p => p.brand))];
 
   const filtered = products.filter(p => {
@@ -49,10 +49,16 @@ export default function ProductsPage() {
           <h1 className="text-3xl font-heading font-bold">Produtos</h1>
           <p className="text-muted-foreground mt-1">Gerencie seu catálogo e grade de estoque</p>
         </div>
-        <Button onClick={() => setShowAdd(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Novo Produto
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowCategories(true)} variant="outline" className="gap-2">
+            <Settings2 className="w-4 h-4" />
+            Categorias
+          </Button>
+          <Button onClick={() => setShowAdd(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Novo Produto
+          </Button>
+        </div>
       </div>
 
       {/* Search & Filters */}
@@ -70,7 +76,7 @@ export default function ProductsPage() {
           <SelectTrigger className="w-40"><SelectValue placeholder="Categoria" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas Categorias</SelectItem>
-            {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={brandFilter} onValueChange={setBrandFilter}>
@@ -168,6 +174,7 @@ export default function ProductsPage() {
       </div>
 
       <AddProductDialog open={showAdd} onOpenChange={setShowAdd} />
+      <ManageCategoriesDialog open={showCategories} onOpenChange={setShowCategories} />
     </div>
   );
 }

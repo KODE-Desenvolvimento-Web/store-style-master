@@ -138,6 +138,11 @@ export interface DbAlert {
   read: boolean;
   created_at: string;
 }
+export interface Category {
+  id: string;
+  name: string;
+  createdAt: Date;
+}
 
 export const SIZES = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'EG'] as const;
 export const COLORS = [
