@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useInventoryContext } from '@/contexts/InventoryContext';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Printer, Download } from 'lucide-react';
+import { Printer, Tags } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 
 export default function LabelsPage() {
@@ -19,11 +19,10 @@ export default function LabelsPage() {
 
   const selectAll = () => {
     if (!selectedProduct) return;
-    setSelectedItems(selectedProduct.grid.map(g => g.id));
+    setSelectedItems(selectedProduct.variants.map(v => v.id));
   };
 
   useEffect(() => {
-    // Render barcodes
     const canvases = containerRef.current?.querySelectorAll('canvas[data-barcode]');
     canvases?.forEach(canvas => {
       const code = (canvas as HTMLCanvasElement).dataset.barcode;
@@ -67,7 +66,7 @@ export default function LabelsPage() {
     w.print();
   };
 
-  const itemsToRender = selectedProduct?.grid.filter(g => selectedItems.includes(g.id)) || [];
+  const itemsToRender = selectedProduct?.variants.filter(v => selectedItems.includes(v.id)) || [];
 
   return (
     <div className="space-y-6">
@@ -100,17 +99,17 @@ export default function LabelsPage() {
           <div>
             <p className="text-sm font-medium mb-2">Selecione as variações:</p>
             <div className="flex flex-wrap gap-2">
-              {selectedProduct.grid.map(item => (
+              {selectedProduct.variants.map(variant => (
                 <button
-                  key={item.id}
-                  onClick={() => toggleItem(item.id)}
+                  key={variant.id}
+                  onClick={() => toggleItem(variant.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    selectedItems.includes(item.id)
+                    selectedItems.includes(variant.id)
                       ? 'bg-primary text-primary-foreground border-primary'
                       : 'bg-card border-border text-muted-foreground hover:border-primary/50'
                   }`}
                 >
-                  {item.color} · {item.size}
+                  {variant.color} · {variant.size}
                 </button>
               ))}
             </div>
@@ -127,25 +126,33 @@ export default function LabelsPage() {
         )}
       </div>
 
-      {/* Labels Preview */}
       {itemsToRender.length > 0 && selectedProduct && (
         <div className="glass-card rounded-xl p-6">
           <h3 className="text-lg font-heading font-semibold mb-4">Pré-visualização</h3>
           <div ref={containerRef}>
             <div className="labels-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {itemsToRender.map(item => (
-                <div key={item.id} className="label border border-dashed border-border rounded-lg p-4 text-center bg-card">
+              {itemsToRender.map(variant => (
+                <div key={variant.id} className="label border border-dashed border-border rounded-lg p-4 text-center bg-card">
                   <h4 className="text-xs font-bold truncate">{selectedProduct.name}</h4>
                   <p className="text-xs text-muted-foreground">Ref: {selectedProduct.reference}</p>
-                  <p className="text-xs text-muted-foreground">{item.color} · Tam: {item.size}</p>
+                  <p className="text-xs text-muted-foreground">{variant.color} · Tam: {variant.size}</p>
+                  <p className="text-[10px] font-mono text-muted-foreground">SKU: {variant.sku}</p>
                   <div className="my-2 flex justify-center">
-                    <canvas data-barcode={item.barcode} />
+                    <canvas data-barcode={variant.barcode} />
                   </div>
-                  <p className="price text-lg font-heading font-bold">R$ {selectedProduct.price.toFixed(2)}</p>
+                  <p className="price text-lg font-heading font-bold">R$ {selectedProduct.salePrice.toFixed(2)}</p>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {!selectedProductId && (
+        <div className="text-center py-16 text-muted-foreground">
+          <Tags className="w-16 h-16 mx-auto mb-4 opacity-20" />
+          <p className="text-lg font-medium">Selecione um produto</p>
+          <p className="text-sm mt-1">Escolha um produto acima para gerar etiquetas com código de barras.</p>
         </div>
       )}
     </div>

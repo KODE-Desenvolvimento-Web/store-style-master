@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useInventoryContext } from '@/contexts/InventoryContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Camera, Keyboard, Search } from 'lucide-react';
+import { Camera, Keyboard, Search, ScanBarcode } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 
 export default function ReaderPage() {
@@ -26,7 +26,7 @@ export default function ReaderPage() {
   useEffect(() => {
     if (result && resultBarcodeRef.current) {
       try {
-        JsBarcode(resultBarcodeRef.current, result.gridItem.barcode, {
+        JsBarcode(resultBarcodeRef.current, result.variant.barcode, {
           format: 'CODE128',
           width: 2,
           height: 50,
@@ -68,8 +68,7 @@ export default function ReaderPage() {
     };
   }, []);
 
-  // Get all barcodes for quick reference
-  const allBarcodes = products.flatMap(p => p.grid.map(g => ({ barcode: g.barcode, product: p.name, color: g.color, size: g.size })));
+  const allBarcodes = products.flatMap(p => p.variants.map(v => ({ barcode: v.barcode, product: p.name, color: v.color, size: v.size })));
 
   return (
     <div className="space-y-6">
@@ -79,7 +78,6 @@ export default function ReaderPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Manual Input */}
         <div className="glass-card rounded-xl p-6 space-y-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Keyboard className="w-4 h-4" />
@@ -98,12 +96,9 @@ export default function ReaderPage() {
               Buscar
             </Button>
           </div>
-
           <div className="text-xs text-muted-foreground">
             <p>Conecte um leitor USB de código de barras e escaneie diretamente neste campo.</p>
           </div>
-
-          {/* Quick reference - show some barcodes to test */}
           <div className="border-t border-border pt-4">
             <p className="text-xs font-medium text-muted-foreground mb-2">Códigos para teste:</p>
             <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -121,7 +116,6 @@ export default function ReaderPage() {
           </div>
         </div>
 
-        {/* Camera */}
         <div className="glass-card rounded-xl p-6 space-y-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Camera className="w-4 h-4" />
@@ -150,45 +144,24 @@ export default function ReaderPage() {
         </div>
       </div>
 
-      {/* Result */}
       {result && (
         <div className="glass-card rounded-xl p-6 border-l-4 border-l-success">
           <h3 className="text-lg font-heading font-semibold mb-4 text-success">Produto Encontrado</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Produto:</span>
-                <span className="font-medium">{result.product.name}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Referência:</span>
-                <span className="font-mono">{result.product.reference}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Marca:</span>
-                <span>{result.product.brand}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Categoria:</span>
-                <span>{result.product.category}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Cor:</span>
-                <span>{result.gridItem.color}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tamanho:</span>
-                <span>{result.gridItem.size}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Preço:</span>
-                <span className="font-bold">R$ {result.product.price.toFixed(2)}</span>
-              </div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Produto:</span><span className="font-medium">{result.product.name}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Referência:</span><span className="font-mono">{result.product.reference}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">SKU:</span><span className="font-mono">{result.variant.sku}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Marca:</span><span>{result.product.brand}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Categoria:</span><span>{result.product.category}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cor:</span><span>{result.variant.color}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Tamanho:</span><span>{result.variant.size}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Preço:</span><span className="font-bold">R$ {result.product.salePrice.toFixed(2)}</span></div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Estoque:</span>
                 <span className={`font-bold ${
-                  result.gridItem.quantity === 0 ? 'text-destructive' : result.gridItem.quantity <= result.gridItem.minStock ? 'text-warning' : 'text-success'
-                }`}>{result.gridItem.quantity} un.</span>
+                  result.variant.currentStock === 0 ? 'text-destructive' : result.variant.currentStock <= result.product.minStockThreshold ? 'text-warning' : 'text-success'
+                }`}>{result.variant.currentStock} un.</span>
               </div>
             </div>
             <div className="flex items-center justify-center">
@@ -200,7 +173,13 @@ export default function ReaderPage() {
 
       {notFound && (
         <div className="glass-card rounded-xl p-6 border-l-4 border-l-destructive">
-          <p className="text-sm text-destructive font-medium">Código de barras não encontrado no sistema.</p>
+          <div className="flex items-center gap-3">
+            <ScanBarcode className="w-8 h-8 text-destructive opacity-50" />
+            <div>
+              <p className="text-sm text-destructive font-medium">Código de barras não encontrado no sistema.</p>
+              <p className="text-xs text-muted-foreground mt-1">Verifique o código ou cadastre o produto.</p>
+            </div>
+          </div>
         </div>
       )}
     </div>

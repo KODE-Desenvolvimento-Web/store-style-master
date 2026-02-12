@@ -1,7 +1,5 @@
-import { useState } from 'react';
 import { Product, SIZES } from '@/types/inventory';
 import { useInventoryContext } from '@/contexts/InventoryContext';
-import { Input } from '@/components/ui/input';
 import { Minus, Plus } from 'lucide-react';
 
 interface Props {
@@ -9,11 +7,10 @@ interface Props {
 }
 
 export default function ProductGrid({ product }: Props) {
-  const { updateProductGrid } = useInventoryContext();
+  const { updateVariantStock } = useInventoryContext();
   
-  // Get unique colors and sizes from the product grid
-  const colors = [...new Set(product.grid.map(g => g.color))];
-  const sizes = SIZES.filter(s => product.grid.some(g => g.size === s));
+  const colors = [...new Set(product.variants.map(v => v.color))];
+  const sizes = SIZES.filter(s => product.variants.some(v => v.size === s));
 
   return (
     <div className="pt-4">
@@ -33,28 +30,28 @@ export default function ProductGrid({ product }: Props) {
               <tr key={color} className="border-t border-border/50">
                 <td className="py-2 px-3 font-medium">{color}</td>
                 {sizes.map(size => {
-                  const item = product.grid.find(g => g.size === size && g.color === color);
-                  if (!item) return <td key={size} className="text-center py-2 px-3 text-muted-foreground">—</td>;
+                  const variant = product.variants.find(v => v.size === size && v.color === color);
+                  if (!variant) return <td key={size} className="text-center py-2 px-3 text-muted-foreground">—</td>;
                   return (
                     <td key={size} className="text-center py-2 px-3">
                       <div className="flex items-center justify-center gap-1">
                         <button
-                          onClick={() => updateProductGrid(product.id, item.id, Math.max(0, item.quantity - 1))}
+                          onClick={() => updateVariantStock(product.id, variant.id, Math.max(0, variant.currentStock - 1))}
                           className="w-6 h-6 rounded bg-muted flex items-center justify-center hover:bg-muted-foreground/20 transition-colors"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
                         <span className={`w-8 text-center font-mono font-bold ${
-                          item.quantity === 0 
+                          variant.currentStock === 0 
                             ? 'text-destructive' 
-                            : item.quantity <= item.minStock 
+                            : variant.currentStock <= product.minStockThreshold 
                               ? 'text-warning' 
                               : 'text-foreground'
                         }`}>
-                          {item.quantity}
+                          {variant.currentStock}
                         </span>
                         <button
-                          onClick={() => updateProductGrid(product.id, item.id, item.quantity + 1)}
+                          onClick={() => updateVariantStock(product.id, variant.id, variant.currentStock + 1)}
                           className="w-6 h-6 rounded bg-muted flex items-center justify-center hover:bg-muted-foreground/20 transition-colors"
                         >
                           <Plus className="w-3 h-3" />
