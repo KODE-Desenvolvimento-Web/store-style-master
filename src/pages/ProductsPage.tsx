@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useInventoryContext } from '@/contexts/InventoryContext';
-import { Search, Plus, ChevronDown, ChevronUp, Trash2, Settings2, Palette } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronUp, Trash2, Settings2, Palette, Pencil } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import ProductGrid from '@/components/ProductGrid';
 import AddProductDialog from '@/components/AddProductDialog';
+import EditProductDialog from '@/components/EditProductDialog';
 import ManageCategoriesDialog from '@/components/ManageCategoriesDialog';
 import ManageColorsDialog from '@/components/ManageColorsDialog';
 import { Package } from 'lucide-react';
+import { Product } from '@/types/inventory';
 
 type StockFilter = 'all' | 'critical' | 'low' | 'ok' | 'excess';
 
@@ -23,6 +25,7 @@ export default function ProductsPage() {
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [showCategories, setShowCategories] = useState(false);
   const [showColors, setShowColors] = useState(false);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
   const brands = [...new Set(products.map(p => p.brand))];
 
   const filtered = products.filter(p => {
@@ -133,7 +136,10 @@ export default function ProductsPage() {
                     </p>
                   </div>
                 </button>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => setEditProduct(product)}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
                   <span className={`text-sm font-bold px-3 py-1 rounded-full ${
                     totalQty === 0 
                       ? 'bg-destructive/10 text-destructive' 
@@ -189,6 +195,7 @@ export default function ProductsPage() {
       <AddProductDialog open={showAdd} onOpenChange={setShowAdd} />
       <ManageCategoriesDialog open={showCategories} onOpenChange={setShowCategories} />
       <ManageColorsDialog open={showColors} onOpenChange={setShowColors} />
+      <EditProductDialog product={editProduct} open={!!editProduct} onOpenChange={open => { if (!open) setEditProduct(null); }} />
     </div>
   );
 }

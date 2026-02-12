@@ -111,6 +111,23 @@ export function useInventory() {
     return data;
   }, [fetchAll]);
 
+  const updateProduct = useCallback(async (productId: string, updates: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'variants'>>) => {
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.imageUrl !== undefined) dbUpdates.image_url = updates.imageUrl;
+    if (updates.category !== undefined) dbUpdates.category = updates.category;
+    if (updates.brand !== undefined) dbUpdates.brand = updates.brand;
+    if (updates.costPrice !== undefined) dbUpdates.cost_price = updates.costPrice;
+    if (updates.salePrice !== undefined) dbUpdates.sale_price = updates.salePrice;
+    if (updates.minStockThreshold !== undefined) dbUpdates.min_stock_threshold = updates.minStockThreshold;
+    dbUpdates.updated_at = new Date().toISOString();
+    const { error } = await from('products').update(dbUpdates).eq('id', productId);
+    if (error) { console.error('updateProduct error', error); return null; }
+    setProducts(prev => prev.map(p => p.id !== productId ? p : { ...p, ...updates, updatedAt: new Date() }));
+    return true;
+  }, []);
+
   const deleteProduct = useCallback(async (productId: string) => {
     await from('products').delete().eq('id', productId);
     setProducts(prev => prev.filter(p => p.id !== productId));
@@ -256,7 +273,7 @@ export function useInventory() {
 
   return {
     products, alerts, inventoryLogs, sales, categories, colors, loading,
-    addProduct, deleteProduct, updateVariantStock, processOperation, registerSale,
+    addProduct, updateProduct, deleteProduct, updateVariantStock, processOperation, registerSale,
     markAlertRead, markAllAlertsRead, findByBarcode, fetchAll,
     addCategory, deleteCategory, updateCategory,
     addColor, deleteColor, updateColor,
