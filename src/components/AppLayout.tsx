@@ -10,7 +10,9 @@ import {
   History,
   Warehouse,
   Sun,
-  Moon
+  Moon,
+  Menu,
+  X
 } from 'lucide-react';
 import { useInventoryContext } from '@/contexts/InventoryContext';
 import { useState, useEffect } from 'react';
@@ -37,15 +39,38 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
     return false;
   });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
     localStorage.setItem('theme', dark ? 'dark' : 'light');
   }, [dark]);
 
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
   return (
     <div className="flex min-h-screen">
-      <aside className="w-64 bg-sidebar text-sidebar-foreground flex flex-col shrink-0">
+      {/* Mobile header */}
+      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between bg-sidebar text-sidebar-foreground px-4 py-3 lg:hidden">
+        <div className="flex items-center gap-3">
+          <img src={logo} alt="Stokk logo" className="w-8 h-8 rounded-lg" />
+          <h1 className="font-heading font-bold text-sidebar-primary text-base">Stokk</h1>
+        </div>
+        <button onClick={() => setSidebarOpen(o => !o)} className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors">
+          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      </header>
+
+      {/* Overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground flex flex-col shrink-0 transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
             <img src={logo} alt="Stokk logo" className="w-10 h-10 rounded-lg" />
@@ -56,7 +81,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map(item => {
             const isActive = location.pathname === item.to;
             return (
@@ -93,8 +118,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">
-        <div className="p-8">
+      <main className="flex-1 overflow-auto w-full">
+        <div className="p-4 pt-16 lg:p-8 lg:pt-8">
           {children}
         </div>
       </main>
