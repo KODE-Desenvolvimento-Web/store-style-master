@@ -6,13 +6,15 @@ import {
   ScanBarcode, 
   Bell,
   Shirt,
-  ArrowRightLeft
+  ArrowRightLeft,
+  ShoppingCart
 } from 'lucide-react';
 import { useInventoryContext } from '@/contexts/InventoryContext';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/produtos', icon: Package, label: 'Produtos' },
+  { to: '/vendas', icon: ShoppingCart, label: 'Vendas' },
   { to: '/operacoes', icon: ArrowRightLeft, label: 'Operações' },
   { to: '/etiquetas', icon: Tags, label: 'Etiquetas' },
   { to: '/leitor', icon: ScanBarcode, label: 'Leitor' },
