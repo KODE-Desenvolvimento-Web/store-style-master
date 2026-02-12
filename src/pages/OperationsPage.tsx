@@ -173,7 +173,20 @@ export default function OperationsPage() {
                       <button onClick={() => updateQuantity(item.variant.id, -1)} className="w-7 h-7 rounded bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="w-10 text-center font-mono font-bold">{item.quantity}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={item.quantity}
+                        onChange={e => {
+                          const val = parseInt(e.target.value);
+                          if (!isNaN(val) && val >= 1) {
+                            setScannedItems(prev => prev.map(si =>
+                              si.variant.id === item.variant.id ? { ...si, quantity: val } : si
+                            ));
+                          }
+                        }}
+                        className="w-14 text-center font-mono font-bold bg-card border border-border rounded h-7 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
                       <button onClick={() => updateQuantity(item.variant.id, 1)} className="w-7 h-7 rounded bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
                         <Plus className="w-3 h-3" />
                       </button>
