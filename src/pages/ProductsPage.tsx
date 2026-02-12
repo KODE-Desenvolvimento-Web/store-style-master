@@ -131,8 +131,7 @@ export default function ProductsPage() {
                       <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{product.reference}</span>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {product.brand} · {product.category} · R$ {product.salePrice.toFixed(2)}
-                      {product.description && <span className="ml-1 text-xs">· {product.description.slice(0, 60)}{product.description.length > 60 ? '…' : ''}</span>}
+                      {product.brand} · {product.category} · R$ {product.salePrice.toFixed(2)} · Mín: {product.minStockThreshold} un.
                     </p>
                   </div>
                 </button>
