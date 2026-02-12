@@ -1,152 +1,186 @@
-import { useState, useCallback } from 'react';
-import { Product, Alert, ProductVariant, InventoryLog, Sale, SaleItem } from '@/types/inventory';
-import { mockProducts, mockAlerts, mockInventoryLogs } from '@/data/mockData';
+import { useState, useCallback, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  Product, Alert, ProductVariant, InventoryLog, Sale,
+  DbProduct, DbProductVariant, DbSale, DbSaleItem, DbInventoryLog, DbAlert,
+} from '@/types/inventory';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const from = (table: string) => (supabase as any).from(table);
+
+function mapProduct(row: DbProduct, variants: DbProductVariant[]): Product {
+  return {
+    id: row.id, name: row.name, reference: row.reference, category: row.category, brand: row.brand,
+    costPrice: Number(row.cost_price), salePrice: Number(row.sale_price),
+    minStockThreshold: row.min_stock_threshold,
+    variants: variants.filter(v => v.product_id === row.id).map(v => ({
+      id: v.id, productId: v.product_id, size: v.size, color: v.color,
+      barcode: v.barcode, sku: v.sku, currentStock: v.current_stock,
+    })),
+    createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at),
+  };
+}
+
+function mapAlert(row: DbAlert): Alert {
+  return {
+    id: row.id, type: row.type as Alert['type'], message: row.message,
+    productId: row.product_id, productName: row.product_name,
+    reference: row.reference, read: row.read, createdAt: new Date(row.created_at),
+  };
+}
+
+function mapLog(row: DbInventoryLog): InventoryLog {
+  return {
+    id: row.id, variantId: row.variant_id, productId: row.product_id,
+    productName: row.product_name, variantLabel: row.variant_label,
+    type: row.type as InventoryLog['type'], quantity: row.quantity,
+    reason: row.reason, timestamp: new Date(row.created_at),
+  };
+}
+
+function mapSale(row: DbSale, items: DbSaleItem[]): Sale {
+  return {
+    id: row.id,
+    items: items.filter(i => i.sale_id === row.id).map(i => ({
+      variantId: i.variant_id, productId: i.product_id,
+      productName: i.product_name, variantLabel: i.variant_label,
+      sku: i.sku, quantity: i.quantity, unitPrice: Number(i.unit_price),
+    })),
+    subtotal: Number(row.subtotal), discount: Number(row.discount), total: Number(row.total),
+    paymentMethod: row.payment_method as Sale['paymentMethod'],
+    cashReceived: row.cash_received != null ? Number(row.cash_received) : undefined,
+    change: row.change != null ? Number(row.change) : undefined,
+    customerName: row.customer_name ?? undefined,
+    createdAt: new Date(row.created_at),
+  };
+}
 
 export function useInventory() {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
-  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
-  const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>(mockInventoryLogs);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const addProduct = useCallback((product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newProduct: Product = {
-      ...product,
-      id: String(Date.now()),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    setProducts(prev => [...prev, newProduct]);
-    return newProduct;
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    const [prodRes, varRes, alertRes, logRes, saleRes, siRes] = await Promise.all([
+      from('products').select('*').order('created_at', { ascending: false }),
+      from('product_variants').select('*'),
+      from('alerts').select('*').order('created_at', { ascending: false }),
+      from('inventory_logs').select('*').order('created_at', { ascending: false }),
+      from('sales').select('*').order('created_at', { ascending: false }),
+      from('sale_items').select('*'),
+    ]);
+    setProducts((prodRes.data ?? []).map((p: DbProduct) => mapProduct(p, varRes.data ?? [])));
+    setAlerts((alertRes.data ?? []).map((a: DbAlert) => mapAlert(a)));
+    setInventoryLogs((logRes.data ?? []).map((l: DbInventoryLog) => mapLog(l)));
+    setSales((saleRes.data ?? []).map((s: DbSale) => mapSale(s, siRes.data ?? [])));
+    setLoading(false);
   }, []);
 
-  const deleteProduct = useCallback((productId: string) => {
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const addProduct = useCallback(async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const { data, error } = await from('products').insert({
+      name: product.name, reference: product.reference, category: product.category,
+      brand: product.brand, cost_price: product.costPrice, sale_price: product.salePrice,
+      min_stock_threshold: product.minStockThreshold,
+    }).select().single();
+    if (error || !data) { console.error('addProduct error', error); return null; }
+
+    if (product.variants.length > 0) {
+      await from('product_variants').insert(
+        product.variants.map(v => ({
+          product_id: data.id, size: v.size, color: v.color,
+          barcode: v.barcode, sku: v.sku, current_stock: v.currentStock,
+        }))
+      );
+    }
+    await fetchAll();
+    return data;
+  }, [fetchAll]);
+
+  const deleteProduct = useCallback(async (productId: string) => {
+    await from('products').delete().eq('id', productId);
     setProducts(prev => prev.filter(p => p.id !== productId));
   }, []);
 
-  const updateVariantStock = useCallback((productId: string, variantId: string, quantity: number) => {
+  const updateVariantStock = useCallback(async (productId: string, variantId: string, quantity: number) => {
+    await from('product_variants').update({ current_stock: quantity }).eq('id', variantId);
     setProducts(prev => prev.map(p => {
       if (p.id !== productId) return p;
-      const newVariants = p.variants.map(v => {
-        if (v.id !== variantId) return v;
-        const updated = { ...v, currentStock: quantity };
-        if (quantity === 0) {
-          setAlerts(a => [...a, {
-            id: String(Date.now()),
-            type: 'out_of_stock',
-            message: `${p.name} - ${v.color} ${v.size} está esgotado`,
-            productId: p.id,
-            productName: p.name,
-            reference: p.reference,
-            read: false,
-            createdAt: new Date(),
-          }]);
-        } else if (quantity <= p.minStockThreshold) {
-          setAlerts(a => [...a, {
-            id: String(Date.now() + 1),
-            type: 'low_stock',
-            message: `${p.name} - ${v.color} ${v.size} com estoque baixo (${quantity} un.)`,
-            productId: p.id,
-            productName: p.name,
-            reference: p.reference,
-            read: false,
-            createdAt: new Date(),
-          }]);
-        }
-        return updated;
-      });
-      return { ...p, variants: newVariants, updatedAt: new Date() };
+      return { ...p, variants: p.variants.map(v => v.id !== variantId ? v : { ...v, currentStock: quantity }), updatedAt: new Date() };
     }));
-  }, []);
 
-  const processOperation = useCallback((items: { productId: string; variantId: string; quantity: number }[], type: 'IN' | 'OUT' | 'ADJUST', reason: string) => {
-    const newLogs: InventoryLog[] = [];
-    
-    setProducts(prev => {
-      const updated = [...prev];
-      for (const item of items) {
-        const pIdx = updated.findIndex(p => p.id === item.productId);
-        if (pIdx === -1) continue;
-        const product = { ...updated[pIdx], variants: [...updated[pIdx].variants] };
-        const vIdx = product.variants.findIndex(v => v.id === item.variantId);
-        if (vIdx === -1) continue;
-        const variant = { ...product.variants[vIdx] };
-        
-        let newStock = variant.currentStock;
-        if (type === 'IN') newStock += item.quantity;
-        else if (type === 'OUT') newStock = Math.max(0, newStock - item.quantity);
-        else newStock = Math.max(0, newStock + item.quantity);
-        
-        variant.currentStock = newStock;
-        product.variants[vIdx] = variant;
-        product.updatedAt = new Date();
-        updated[pIdx] = product;
-
-        newLogs.push({
-          id: String(Date.now() + Math.random()),
-          variantId: item.variantId,
-          productId: item.productId,
-          productName: product.name,
-          variantLabel: `${variant.color} ${variant.size}`,
-          type,
-          quantity: type === 'OUT' ? -item.quantity : item.quantity,
-          reason,
-          timestamp: new Date(),
-        });
-
-        // Generate alerts
-        if (newStock === 0) {
-          setAlerts(a => [...a, {
-            id: String(Date.now() + Math.random()),
-            type: 'out_of_stock',
-            message: `${product.name} - ${variant.color} ${variant.size} está esgotado`,
-            productId: product.id,
-            productName: product.name,
-            reference: product.reference,
-            read: false,
-            createdAt: new Date(),
-          }]);
-        } else if (newStock <= product.minStockThreshold && newStock > 0) {
-          setAlerts(a => [...a, {
-            id: String(Date.now() + Math.random()),
-            type: 'low_stock',
-            message: `${product.name} - ${variant.color} ${variant.size} com estoque baixo (${newStock} un.)`,
-            productId: product.id,
-            productName: product.name,
-            reference: product.reference,
-            read: false,
-            createdAt: new Date(),
-          }]);
-        }
+    const product = products.find(p => p.id === productId);
+    const variant = product?.variants.find(v => v.id === variantId);
+    if (product && variant) {
+      if (quantity === 0) {
+        await from('alerts').insert({ type: 'out_of_stock', message: `${product.name} - ${variant.color} ${variant.size} está esgotado`, product_id: productId, product_name: product.name, reference: product.reference });
+      } else if (quantity <= product.minStockThreshold) {
+        await from('alerts').insert({ type: 'low_stock', message: `${product.name} - ${variant.color} ${variant.size} com estoque baixo (${quantity} un.)`, product_id: productId, product_name: product.name, reference: product.reference });
       }
-      return updated;
-    });
+    }
+  }, [products]);
 
-    setInventoryLogs(prev => [...newLogs, ...prev]);
-  }, []);
+  const processOperation = useCallback(async (
+    items: { productId: string; variantId: string; quantity: number }[],
+    type: 'IN' | 'OUT' | 'ADJUST', reason: string,
+  ) => {
+    for (const item of items) {
+      const product = products.find(p => p.id === item.productId);
+      const variant = product?.variants.find(v => v.id === item.variantId);
+      if (!product || !variant) continue;
 
-  const registerSale = useCallback((sale: Omit<Sale, 'id' | 'createdAt'>) => {
-    const newSale: Sale = {
-      ...sale,
-      id: String(Date.now()),
-      createdAt: new Date(),
-    };
-    setSales(prev => [newSale, ...prev]);
+      let newStock = variant.currentStock;
+      if (type === 'IN') newStock += item.quantity;
+      else if (type === 'OUT') newStock = Math.max(0, newStock - item.quantity);
+      else newStock = Math.max(0, newStock + item.quantity);
 
-    // Process stock out
-    const items = sale.items.map(i => ({
-      productId: i.productId,
-      variantId: i.variantId,
-      quantity: i.quantity,
-    }));
-    processOperation(items, 'OUT', `Venda #${newSale.id.slice(-6)}${sale.customerName ? ` — ${sale.customerName}` : ''}`);
-    return newSale;
+      await from('product_variants').update({ current_stock: newStock }).eq('id', item.variantId);
+      await from('inventory_logs').insert({
+        variant_id: item.variantId, product_id: item.productId,
+        product_name: product.name, variant_label: `${variant.color} ${variant.size}`,
+        type, quantity: type === 'OUT' ? -item.quantity : item.quantity, reason,
+      });
+
+      if (newStock === 0) {
+        await from('alerts').insert({ type: 'out_of_stock', message: `${product.name} - ${variant.color} ${variant.size} está esgotado`, product_id: product.id, product_name: product.name, reference: product.reference });
+      } else if (newStock <= product.minStockThreshold && newStock > 0) {
+        await from('alerts').insert({ type: 'low_stock', message: `${product.name} - ${variant.color} ${variant.size} com estoque baixo (${newStock} un.)`, product_id: product.id, product_name: product.name, reference: product.reference });
+      }
+    }
+    await fetchAll();
+  }, [products, fetchAll]);
+
+  const registerSale = useCallback(async (sale: Omit<Sale, 'id' | 'createdAt'>) => {
+    const { data, error } = await from('sales').insert({
+      subtotal: sale.subtotal, discount: sale.discount, total: sale.total,
+      payment_method: sale.paymentMethod,
+      cash_received: sale.cashReceived ?? null, change: sale.change ?? null,
+      customer_name: sale.customerName ?? null,
+    }).select().single();
+    if (error || !data) { console.error('registerSale error', error); return null; }
+
+    await from('sale_items').insert(sale.items.map(i => ({
+      sale_id: data.id, variant_id: i.variantId, product_id: i.productId,
+      product_name: i.productName, variant_label: i.variantLabel,
+      sku: i.sku, quantity: i.quantity, unit_price: i.unitPrice,
+    })));
+
+    const opItems = sale.items.map(i => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity }));
+    await processOperation(opItems, 'OUT', `Venda #${data.id.slice(-6)}${sale.customerName ? ` — ${sale.customerName}` : ''}`);
+    return data;
   }, [processOperation]);
 
-  const markAlertRead = useCallback((alertId: string) => {
+  const markAlertRead = useCallback(async (alertId: string) => {
+    await from('alerts').update({ read: true }).eq('id', alertId);
     setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a));
   }, []);
 
-  const markAllAlertsRead = useCallback(() => {
+  const markAllAlertsRead = useCallback(async () => {
+    await from('alerts').update({ read: true }).eq('read', false);
     setAlerts(prev => prev.map(a => ({ ...a, read: true })));
   }, []);
 
@@ -163,32 +197,14 @@ export function useInventory() {
   const lowStockCount = products.reduce((sum, p) => sum + p.variants.filter(v => v.currentStock > 0 && v.currentStock <= p.minStockThreshold).length, 0);
   const outOfStockCount = products.reduce((sum, p) => sum + p.variants.filter(v => v.currentStock === 0).length, 0);
   const unreadAlerts = alerts.filter(a => !a.read).length;
-
-  const todaySales = sales.filter(s => {
-    const today = new Date();
-    return s.createdAt.toDateString() === today.toDateString();
-  });
+  const todaySales = sales.filter(s => s.createdAt.toDateString() === new Date().toDateString());
   const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0);
 
   return {
-    products,
-    alerts,
-    inventoryLogs,
-    sales,
-    addProduct,
-    deleteProduct,
-    updateVariantStock,
-    processOperation,
-    registerSale,
-    markAlertRead,
-    markAllAlertsRead,
-    findByBarcode,
-    totalProducts,
-    totalItems,
-    lowStockCount,
-    outOfStockCount,
-    unreadAlerts,
-    todaySales,
-    todayRevenue,
+    products, alerts, inventoryLogs, sales, loading,
+    addProduct, deleteProduct, updateVariantStock, processOperation, registerSale,
+    markAlertRead, markAllAlertsRead, findByBarcode, fetchAll,
+    totalProducts, totalItems, lowStockCount, outOfStockCount, unreadAlerts,
+    todaySales, todayRevenue,
   };
 }
