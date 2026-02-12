@@ -1,3 +1,4 @@
+// v2
 import { createContext, useContext, ReactNode } from 'react';
 import { useInventory } from '@/hooks/useInventory';
 
