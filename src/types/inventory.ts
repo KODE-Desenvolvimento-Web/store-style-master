@@ -1,6 +1,8 @@
 export interface Product {
   id: string;
   name: string;
+  description: string;
+  imageUrl: string;
   reference: string;
   category: string;
   brand: string;
@@ -72,6 +74,8 @@ export interface Alert {
 export interface DbProduct {
   id: string;
   name: string;
+  description: string;
+  image_url: string;
   reference: string;
   category: string;
   brand: string;

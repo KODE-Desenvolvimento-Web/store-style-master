@@ -11,7 +11,8 @@ const from = (table: string) => (supabase as any).from(table);
 
 function mapProduct(row: DbProduct, variants: DbProductVariant[]): Product {
   return {
-    id: row.id, name: row.name, reference: row.reference, category: row.category, brand: row.brand,
+    id: row.id, name: row.name, description: row.description ?? '', imageUrl: row.image_url ?? '',
+    reference: row.reference, category: row.category, brand: row.brand,
     costPrice: Number(row.cost_price), salePrice: Number(row.sale_price),
     minStockThreshold: row.min_stock_threshold,
     variants: variants.filter(v => v.product_id === row.id).map(v => ({
@@ -94,6 +95,7 @@ export function useInventory() {
       name: product.name, reference: product.reference, category: product.category,
       brand: product.brand, cost_price: product.costPrice, sale_price: product.salePrice,
       min_stock_threshold: product.minStockThreshold,
+      description: product.description ?? '', image_url: product.imageUrl ?? '',
     }).select().single();
     if (error || !data) { console.error('addProduct error', error); return null; }
 
