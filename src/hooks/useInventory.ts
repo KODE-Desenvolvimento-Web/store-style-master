@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   Product, Alert, ProductVariant, InventoryLog, Sale,
   DbProduct, DbProductVariant, DbSale, DbSaleItem, DbInventoryLog, DbAlert,
-  Category,
+  Category, ColorItem,
 } from '@/types/inventory';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,11 +63,12 @@ export function useInventory() {
   const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [colors, setColors] = useState<ColorItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [prodRes, varRes, alertRes, logRes, saleRes, siRes, catRes] = await Promise.all([
+    const [prodRes, varRes, alertRes, logRes, saleRes, siRes, catRes, colRes] = await Promise.all([
       from('products').select('*').order('created_at', { ascending: false }),
       from('product_variants').select('*'),
       from('alerts').select('*').order('created_at', { ascending: false }),
@@ -75,12 +76,14 @@ export function useInventory() {
       from('sales').select('*').order('created_at', { ascending: false }),
       from('sale_items').select('*'),
       from('categories').select('*').order('name'),
+      from('colors').select('*').order('name'),
     ]);
     setProducts((prodRes.data ?? []).map((p: DbProduct) => mapProduct(p, varRes.data ?? [])));
     setAlerts((alertRes.data ?? []).map((a: DbAlert) => mapAlert(a)));
     setInventoryLogs((logRes.data ?? []).map((l: DbInventoryLog) => mapLog(l)));
     setSales((saleRes.data ?? []).map((s: DbSale) => mapSale(s, siRes.data ?? [])));
     setCategories((catRes.data ?? []).map((c: { id: string; name: string; created_at: string }) => ({ id: c.id, name: c.name, createdAt: new Date(c.created_at) })));
+    setColors((colRes.data ?? []).map((c: { id: string; name: string; hex: string; created_at: string }) => ({ id: c.id, name: c.name, hex: c.hex, createdAt: new Date(c.created_at) })));
     setLoading(false);
   }, []);
 
@@ -214,6 +217,25 @@ export function useInventory() {
     return true;
   }, [categories]);
 
+  const addColor = useCallback(async (name: string, hex: string) => {
+    const { data, error } = await from('colors').insert({ name, hex }).select().single();
+    if (error) { console.error('addColor error', error); return null; }
+    setColors(prev => [...prev, { id: data.id, name: data.name, hex: data.hex, createdAt: new Date(data.created_at) }].sort((a, b) => a.name.localeCompare(b.name)));
+    return data;
+  }, []);
+
+  const deleteColor = useCallback(async (colorId: string) => {
+    await from('colors').delete().eq('id', colorId);
+    setColors(prev => prev.filter(c => c.id !== colorId));
+  }, []);
+
+  const updateColor = useCallback(async (colorId: string, name: string, hex: string) => {
+    const { error } = await from('colors').update({ name, hex }).eq('id', colorId);
+    if (error) { console.error('updateColor error', error); return null; }
+    setColors(prev => prev.map(c => c.id === colorId ? { ...c, name, hex } : c).sort((a, b) => a.name.localeCompare(b.name)));
+    return true;
+  }, []);
+
   const findByBarcode = useCallback((barcode: string): { product: Product; variant: ProductVariant } | null => {
     for (const product of products) {
       const variant = product.variants.find(v => v.barcode === barcode);
@@ -231,10 +253,11 @@ export function useInventory() {
   const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0);
 
   return {
-    products, alerts, inventoryLogs, sales, categories, loading,
+    products, alerts, inventoryLogs, sales, categories, colors, loading,
     addProduct, deleteProduct, updateVariantStock, processOperation, registerSale,
     markAlertRead, markAllAlertsRead, findByBarcode, fetchAll,
     addCategory, deleteCategory, updateCategory,
+    addColor, deleteColor, updateColor,
     totalProducts, totalItems, lowStockCount, outOfStockCount, unreadAlerts,
     todaySales, todayRevenue,
   };

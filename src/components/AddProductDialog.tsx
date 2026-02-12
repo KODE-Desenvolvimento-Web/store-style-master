@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useInventoryContext } from '@/contexts/InventoryContext';
-import { SIZES, COLORS, ProductVariant } from '@/types/inventory';
+import { SIZES, ProductVariant } from '@/types/inventory';
 import { RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -32,7 +32,7 @@ interface VariantDraft {
 }
 
 export default function AddProductDialog({ open, onOpenChange }: Props) {
-  const { addProduct, categories } = useInventoryContext();
+  const { addProduct, categories, colors } = useInventoryContext();
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [brand, setBrand] = useState('');
@@ -181,9 +181,9 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
           <div>
             <Label className="mb-2 block">Cores</Label>
             <div className="flex flex-wrap gap-2">
-              {COLORS.map(color => (
+              {colors.map(color => (
                 <button
-                  key={color.name}
+                  key={color.id}
                   onClick={() => toggleColor(color.name)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                     selectedColors.includes(color.name)

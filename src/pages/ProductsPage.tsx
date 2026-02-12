@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useInventoryContext } from '@/contexts/InventoryContext';
-import { Search, Plus, ChevronDown, ChevronUp, Trash2, Settings2 } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronUp, Trash2, Settings2, Palette } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,6 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import ProductGrid from '@/components/ProductGrid';
 import AddProductDialog from '@/components/AddProductDialog';
 import ManageCategoriesDialog from '@/components/ManageCategoriesDialog';
+import ManageColorsDialog from '@/components/ManageColorsDialog';
 import { Package } from 'lucide-react';
 
 type StockFilter = 'all' | 'critical' | 'low' | 'ok' | 'excess';
@@ -21,6 +22,7 @@ export default function ProductsPage() {
   const [brandFilter, setBrandFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [showCategories, setShowCategories] = useState(false);
+  const [showColors, setShowColors] = useState(false);
   const brands = [...new Set(products.map(p => p.brand))];
 
   const filtered = products.filter(p => {
@@ -53,6 +55,10 @@ export default function ProductsPage() {
           <Button onClick={() => setShowCategories(true)} variant="outline" className="gap-2">
             <Settings2 className="w-4 h-4" />
             Categorias
+          </Button>
+          <Button onClick={() => setShowColors(true)} variant="outline" className="gap-2">
+            <Palette className="w-4 h-4" />
+            Cores
           </Button>
           <Button onClick={() => setShowAdd(true)} className="gap-2">
             <Plus className="w-4 h-4" />
@@ -175,6 +181,7 @@ export default function ProductsPage() {
 
       <AddProductDialog open={showAdd} onOpenChange={setShowAdd} />
       <ManageCategoriesDialog open={showCategories} onOpenChange={setShowCategories} />
+      <ManageColorsDialog open={showColors} onOpenChange={setShowColors} />
     </div>
   );
 }
