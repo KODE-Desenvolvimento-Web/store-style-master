@@ -200,6 +200,19 @@ export function useInventory() {
     setCategories(prev => prev.filter(c => c.id !== categoryId));
   }, []);
 
+  const updateCategory = useCallback(async (categoryId: string, newName: string) => {
+    const oldCat = categories.find(c => c.id === categoryId);
+    const { error } = await from('categories').update({ name: newName }).eq('id', categoryId);
+    if (error) { console.error('updateCategory error', error); return null; }
+    // Also update products that use the old category name
+    if (oldCat) {
+      await from('products').update({ category: newName }).eq('category', oldCat.name);
+      setProducts(prev => prev.map(p => p.category === oldCat.name ? { ...p, category: newName } : p));
+    }
+    setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, name: newName } : c).sort((a, b) => a.name.localeCompare(b.name)));
+    return true;
+  }, [categories]);
+
   const findByBarcode = useCallback((barcode: string): { product: Product; variant: ProductVariant } | null => {
     for (const product of products) {
       const variant = product.variants.find(v => v.barcode === barcode);
@@ -220,7 +233,7 @@ export function useInventory() {
     products, alerts, inventoryLogs, sales, categories, loading,
     addProduct, deleteProduct, updateVariantStock, processOperation, registerSale,
     markAlertRead, markAllAlertsRead, findByBarcode, fetchAll,
-    addCategory, deleteCategory,
+    addCategory, deleteCategory, updateCategory,
     totalProducts, totalItems, lowStockCount, outOfStockCount, unreadAlerts,
     todaySales, todayRevenue,
   };
