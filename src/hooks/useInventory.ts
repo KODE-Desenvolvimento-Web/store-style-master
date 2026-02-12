@@ -88,10 +88,9 @@ export function useInventory() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
-
-  // Auto-refresh alerts every 15 seconds
   useEffect(() => {
+    fetchAll();
+    // Auto-refresh every 15 seconds
     const interval = setInterval(async () => {
       const [alertRes, varRes, prodRes] = await Promise.all([
         from('alerts').select('*').order('created_at', { ascending: false }),
@@ -102,7 +101,7 @@ export function useInventory() {
       if (prodRes.data && varRes.data) setProducts(prodRes.data.map((p: DbProduct) => mapProduct(p, varRes.data ?? [])));
     }, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchAll]);
 
   const addProduct = useCallback(async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
     const { data, error } = await from('products').insert({
