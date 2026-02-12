@@ -189,7 +189,9 @@ export type Database = {
           category: string
           cost_price: number
           created_at: string
+          description: string
           id: string
+          image_url: string
           min_stock_threshold: number
           name: string
           reference: string
@@ -201,7 +203,9 @@ export type Database = {
           category: string
           cost_price?: number
           created_at?: string
+          description?: string
           id?: string
+          image_url?: string
           min_stock_threshold?: number
           name: string
           reference: string
@@ -213,7 +217,9 @@ export type Database = {
           category?: string
           cost_price?: number
           created_at?: string
+          description?: string
           id?: string
+          image_url?: string
           min_stock_threshold?: number
           name?: string
           reference?: string
