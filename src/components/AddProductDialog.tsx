@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useInventoryContext } from '@/contexts/InventoryContext';
-import { SIZES, COLORS, CATEGORIES, ProductVariant } from '@/types/inventory';
+import { SIZES, COLORS, ProductVariant } from '@/types/inventory';
 import { RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -32,7 +32,7 @@ interface VariantDraft {
 }
 
 export default function AddProductDialog({ open, onOpenChange }: Props) {
-  const { addProduct } = useInventoryContext();
+  const { addProduct, categories } = useInventoryContext();
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [brand, setBrand] = useState('');
@@ -137,7 +137,7 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

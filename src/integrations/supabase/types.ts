@@ -14,7 +14,269 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alerts: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          product_id: string
+          product_name: string
+          read: boolean
+          reference: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          product_id: string
+          product_name: string
+          read?: boolean
+          reference?: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          product_id?: string
+          product_name?: string
+          read?: boolean
+          reference?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_logs: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          product_name: string
+          quantity: number
+          reason: string
+          type: string
+          variant_id: string
+          variant_label: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          product_name: string
+          quantity?: number
+          reason?: string
+          type?: string
+          variant_id: string
+          variant_label: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          product_name?: string
+          quantity?: number
+          reason?: string
+          type?: string
+          variant_id?: string
+          variant_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_logs_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_variants: {
+        Row: {
+          barcode: string
+          color: string
+          current_stock: number
+          id: string
+          product_id: string
+          size: string
+          sku: string
+        }
+        Insert: {
+          barcode?: string
+          color: string
+          current_stock?: number
+          id?: string
+          product_id: string
+          size: string
+          sku?: string
+        }
+        Update: {
+          barcode?: string
+          color?: string
+          current_stock?: number
+          id?: string
+          product_id?: string
+          size?: string
+          sku?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          brand: string
+          category: string
+          cost_price: number
+          created_at: string
+          id: string
+          min_stock_threshold: number
+          name: string
+          reference: string
+          sale_price: number
+          updated_at: string
+        }
+        Insert: {
+          brand: string
+          category: string
+          cost_price?: number
+          created_at?: string
+          id?: string
+          min_stock_threshold?: number
+          name: string
+          reference: string
+          sale_price?: number
+          updated_at?: string
+        }
+        Update: {
+          brand?: string
+          category?: string
+          cost_price?: number
+          created_at?: string
+          id?: string
+          min_stock_threshold?: number
+          name?: string
+          reference?: string
+          sale_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sale_items: {
+        Row: {
+          id: string
+          product_id: string
+          product_name: string
+          quantity: number
+          sale_id: string
+          sku: string
+          unit_price: number
+          variant_id: string
+          variant_label: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          product_name: string
+          quantity?: number
+          sale_id: string
+          sku?: string
+          unit_price?: number
+          variant_id: string
+          variant_label: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          product_name?: string
+          quantity?: number
+          sale_id?: string
+          sku?: string
+          unit_price?: number
+          variant_id?: string
+          variant_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales: {
+        Row: {
+          cash_received: number | null
+          change: number | null
+          created_at: string
+          customer_name: string | null
+          discount: number
+          id: string
+          payment_method: string
+          subtotal: number
+          total: number
+        }
+        Insert: {
+          cash_received?: number | null
+          change?: number | null
+          created_at?: string
+          customer_name?: string | null
+          discount?: number
+          id?: string
+          payment_method?: string
+          subtotal?: number
+          total?: number
+        }
+        Update: {
+          cash_received?: number | null
+          change?: number | null
+          created_at?: string
+          customer_name?: string | null
+          discount?: number
+          id?: string
+          payment_method?: string
+          subtotal?: number
+          total?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

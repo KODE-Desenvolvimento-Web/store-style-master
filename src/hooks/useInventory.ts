@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   Product, Alert, ProductVariant, InventoryLog, Sale,
   DbProduct, DbProductVariant, DbSale, DbSaleItem, DbInventoryLog, DbAlert,
+  Category,
 } from '@/types/inventory';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,22 +61,25 @@ export function useInventory() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [prodRes, varRes, alertRes, logRes, saleRes, siRes] = await Promise.all([
+    const [prodRes, varRes, alertRes, logRes, saleRes, siRes, catRes] = await Promise.all([
       from('products').select('*').order('created_at', { ascending: false }),
       from('product_variants').select('*'),
       from('alerts').select('*').order('created_at', { ascending: false }),
       from('inventory_logs').select('*').order('created_at', { ascending: false }),
       from('sales').select('*').order('created_at', { ascending: false }),
       from('sale_items').select('*'),
+      from('categories').select('*').order('name'),
     ]);
     setProducts((prodRes.data ?? []).map((p: DbProduct) => mapProduct(p, varRes.data ?? [])));
     setAlerts((alertRes.data ?? []).map((a: DbAlert) => mapAlert(a)));
     setInventoryLogs((logRes.data ?? []).map((l: DbInventoryLog) => mapLog(l)));
     setSales((saleRes.data ?? []).map((s: DbSale) => mapSale(s, siRes.data ?? [])));
+    setCategories((catRes.data ?? []).map((c: { id: string; name: string; created_at: string }) => ({ id: c.id, name: c.name, createdAt: new Date(c.created_at) })));
     setLoading(false);
   }, []);
 
@@ -184,6 +188,18 @@ export function useInventory() {
     setAlerts(prev => prev.map(a => ({ ...a, read: true })));
   }, []);
 
+  const addCategory = useCallback(async (name: string) => {
+    const { data, error } = await from('categories').insert({ name }).select().single();
+    if (error) { console.error('addCategory error', error); return null; }
+    setCategories(prev => [...prev, { id: data.id, name: data.name, createdAt: new Date(data.created_at) }].sort((a, b) => a.name.localeCompare(b.name)));
+    return data;
+  }, []);
+
+  const deleteCategory = useCallback(async (categoryId: string) => {
+    await from('categories').delete().eq('id', categoryId);
+    setCategories(prev => prev.filter(c => c.id !== categoryId));
+  }, []);
+
   const findByBarcode = useCallback((barcode: string): { product: Product; variant: ProductVariant } | null => {
     for (const product of products) {
       const variant = product.variants.find(v => v.barcode === barcode);
@@ -201,9 +217,10 @@ export function useInventory() {
   const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0);
 
   return {
-    products, alerts, inventoryLogs, sales, loading,
+    products, alerts, inventoryLogs, sales, categories, loading,
     addProduct, deleteProduct, updateVariantStock, processOperation, registerSale,
     markAlertRead, markAllAlertsRead, findByBarcode, fetchAll,
+    addCategory, deleteCategory,
     totalProducts, totalItems, lowStockCount, outOfStockCount, unreadAlerts,
     todaySales, todayRevenue,
   };
