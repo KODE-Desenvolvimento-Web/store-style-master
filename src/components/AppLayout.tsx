@@ -5,13 +5,15 @@ import {
   Tags, 
   ScanBarcode, 
   Bell,
-  Shirt
+  Shirt,
+  ArrowRightLeft
 } from 'lucide-react';
 import { useInventoryContext } from '@/contexts/InventoryContext';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/produtos', icon: Package, label: 'Produtos' },
+  { to: '/operacoes', icon: ArrowRightLeft, label: 'Operações' },
   { to: '/etiquetas', icon: Tags, label: 'Etiquetas' },
   { to: '/leitor', icon: ScanBarcode, label: 'Leitor' },
   { to: '/avisos', icon: Bell, label: 'Avisos' },
@@ -23,7 +25,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
       <aside className="w-64 bg-sidebar text-sidebar-foreground flex flex-col shrink-0">
         <div className="p-6 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
@@ -63,11 +64,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-4 border-t border-sidebar-border">
-          <p className="text-xs text-sidebar-muted text-center">v1.0 — StockWear</p>
+          <p className="text-xs text-sidebar-muted text-center">v2.0 — StockWear Pro</p>
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="flex-1 overflow-auto">
         <div className="p-8">
           {children}

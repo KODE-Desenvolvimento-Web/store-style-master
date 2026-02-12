@@ -9,6 +9,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ProductsPage from "./pages/ProductsPage";
 import LabelsPage from "./pages/LabelsPage";
 import ReaderPage from "./pages/ReaderPage";
+import OperationsPage from "./pages/OperationsPage";
 import AlertsPage from "./pages/AlertsPage";
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +26,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/produtos" element={<ProductsPage />} />
+              <Route path="/operacoes" element={<OperationsPage />} />
               <Route path="/etiquetas" element={<LabelsPage />} />
               <Route path="/leitor" element={<ReaderPage />} />
               <Route path="/avisos" element={<AlertsPage />} />

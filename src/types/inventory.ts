@@ -1,23 +1,37 @@
 export interface Product {
   id: string;
-  reference: string;
   name: string;
+  reference: string;
   category: string;
   brand: string;
-  price: number;
   costPrice: number;
-  grid: GridItem[];
+  salePrice: number;
+  minStockThreshold: number;
+  variants: ProductVariant[];
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface GridItem {
+export interface ProductVariant {
   id: string;
+  productId: string;
   size: string;
   color: string;
-  quantity: number;
   barcode: string;
-  minStock: number;
+  sku: string;
+  currentStock: number;
+}
+
+export interface InventoryLog {
+  id: string;
+  variantId: string;
+  productId: string;
+  productName: string;
+  variantLabel: string;
+  type: 'IN' | 'OUT' | 'ADJUST';
+  quantity: number;
+  reason: string;
+  timestamp: Date;
 }
 
 export interface Alert {
