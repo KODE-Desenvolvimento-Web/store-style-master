@@ -145,8 +145,8 @@ export function useInventory() {
     if (product && variant) {
       if (quantity === 0) {
         await from('alerts').insert({ type: 'out_of_stock', message: `${product.name} - ${variant.color} ${variant.size} está esgotado`, product_id: productId, product_name: product.name, reference: product.reference });
-      } else if (quantity <= product.minStockThreshold) {
-        await from('alerts').insert({ type: 'low_stock', message: `${product.name} - ${variant.color} ${variant.size} com estoque baixo (${quantity} un.)`, product_id: productId, product_name: product.name, reference: product.reference });
+      } else if (quantity < product.minStockThreshold) {
+        await from('alerts').insert({ type: 'low_stock', message: `${product.name} - ${variant.color} ${variant.size} com estoque baixo (${quantity}/${product.minStockThreshold} un.)`, product_id: productId, product_name: product.name, reference: product.reference });
       }
     }
   }, [products]);
@@ -174,8 +174,8 @@ export function useInventory() {
 
       if (newStock === 0) {
         await from('alerts').insert({ type: 'out_of_stock', message: `${product.name} - ${variant.color} ${variant.size} está esgotado`, product_id: product.id, product_name: product.name, reference: product.reference });
-      } else if (newStock <= product.minStockThreshold && newStock > 0) {
-        await from('alerts').insert({ type: 'low_stock', message: `${product.name} - ${variant.color} ${variant.size} com estoque baixo (${newStock} un.)`, product_id: product.id, product_name: product.name, reference: product.reference });
+      } else if (newStock < product.minStockThreshold) {
+        await from('alerts').insert({ type: 'low_stock', message: `${product.name} - ${variant.color} ${variant.size} com estoque baixo (${newStock}/${product.minStockThreshold} un.)`, product_id: product.id, product_name: product.name, reference: product.reference });
       }
     }
     await fetchAll();
@@ -265,7 +265,7 @@ export function useInventory() {
 
   const totalProducts = products.length;
   const totalItems = products.reduce((sum, p) => sum + p.variants.reduce((s, v) => s + v.currentStock, 0), 0);
-  const lowStockCount = products.reduce((sum, p) => sum + p.variants.filter(v => v.currentStock > 0 && v.currentStock <= p.minStockThreshold).length, 0);
+  const lowStockCount = products.reduce((sum, p) => sum + p.variants.filter(v => v.currentStock > 0 && v.currentStock < p.minStockThreshold).length, 0);
   const outOfStockCount = products.reduce((sum, p) => sum + p.variants.filter(v => v.currentStock === 0).length, 0);
   const unreadAlerts = alerts.filter(a => !a.read).length;
   const todaySales = sales.filter(s => s.createdAt.toDateString() === new Date().toDateString());
