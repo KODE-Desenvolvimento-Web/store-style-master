@@ -68,6 +68,77 @@ export interface Alert {
   createdAt: Date;
 }
 
+// DB row types (snake_case from Supabase)
+export interface DbProduct {
+  id: string;
+  name: string;
+  reference: string;
+  category: string;
+  brand: string;
+  cost_price: number;
+  sale_price: number;
+  min_stock_threshold: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbProductVariant {
+  id: string;
+  product_id: string;
+  size: string;
+  color: string;
+  barcode: string;
+  sku: string;
+  current_stock: number;
+}
+
+export interface DbSale {
+  id: string;
+  subtotal: number;
+  discount: number;
+  total: number;
+  payment_method: string;
+  cash_received: number | null;
+  change: number | null;
+  customer_name: string | null;
+  created_at: string;
+}
+
+export interface DbSaleItem {
+  id: string;
+  sale_id: string;
+  variant_id: string;
+  product_id: string;
+  product_name: string;
+  variant_label: string;
+  sku: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface DbInventoryLog {
+  id: string;
+  variant_id: string;
+  product_id: string;
+  product_name: string;
+  variant_label: string;
+  type: string;
+  quantity: number;
+  reason: string;
+  created_at: string;
+}
+
+export interface DbAlert {
+  id: string;
+  type: string;
+  message: string;
+  product_id: string;
+  product_name: string;
+  reference: string;
+  read: boolean;
+  created_at: string;
+}
+
 export const SIZES = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'EG'] as const;
 export const COLORS = [
   { name: 'Branco', hex: '#FFFFFF' },
