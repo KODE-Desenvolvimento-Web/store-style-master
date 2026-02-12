@@ -3,8 +3,9 @@ import { useInventoryContext } from '@/contexts/InventoryContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScanBarcode, Plus, Minus, Trash2, CheckCircle, ArrowDownToLine, ArrowUpFromLine, Settings2, Package } from 'lucide-react';
+import { ScanBarcode, Plus, Minus, Trash2, CheckCircle, ArrowDownToLine, ArrowUpFromLine, Settings2, Package, Search } from 'lucide-react';
 import { ProductVariant, Product } from '@/types/inventory';
+import ProductSearchDialog from '@/components/ProductSearchDialog';
 
 interface ScannedItem {
   product: Product;
@@ -21,18 +22,21 @@ export default function OperationsPage() {
   const [success, setSuccess] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const addVariant = (product: Product, variant: ProductVariant) => {
+    setScannedItems(prev => {
+      const existing = prev.findIndex(i => i.variant.id === variant.id);
+      if (existing >= 0) {
+        return prev.map((item, i) => i === existing ? { ...item, quantity: item.quantity + 1 } : item);
+      }
+      return [...prev, { product, variant, quantity: 1 }];
+    });
+  };
+
   const handleScan = (code: string) => {
     if (!code.trim()) return;
     const found = findByBarcode(code.trim());
     if (!found) return;
-
-    setScannedItems(prev => {
-      const existing = prev.findIndex(i => i.variant.id === found.variant.id);
-      if (existing >= 0) {
-        return prev.map((item, i) => i === existing ? { ...item, quantity: item.quantity + 1 } : item);
-      }
-      return [...prev, { product: found.product, variant: found.variant, quantity: 1 }];
-    });
+    addVariant(found.product, found.variant);
     setBarcodeInput('');
     inputRef.current?.focus();
   };
@@ -102,6 +106,17 @@ export default function OperationsPage() {
             <Button onClick={() => handleScan(barcodeInput)} className="w-full gap-2" variant="outline">
               <Plus className="w-4 h-4" /> Adicionar Item
             </Button>
+            <ProductSearchDialog
+              onSelectVariant={(product, variant) => {
+                addVariant(product, variant);
+                inputRef.current?.focus();
+              }}
+              trigger={
+                <Button variant="secondary" className="w-full gap-2">
+                  <Search className="w-4 h-4" /> Busca Avançada
+                </Button>
+              }
+            />
           </div>
 
           <div className="glass-card rounded-xl p-6 space-y-4">
