@@ -57,7 +57,7 @@ function mapSale(row: DbSale, items: DbSaleItem[]): Sale {
   };
 }
 
-// Inventory management hook — v2
+// Inventory management hook — v3 (multi-tenant)
 export function useInventory() {
   const [products, setProducts] = useState<Product[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -107,11 +107,14 @@ export function useInventory() {
   }, [fetchAll]);
 
   const addProduct = useCallback(async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
     const { data, error } = await from('products').insert({
       name: product.name, reference: product.reference, category: product.category,
       brand: product.brand, cost_price: product.costPrice, sale_price: product.salePrice,
       min_stock_threshold: product.minStockThreshold,
       description: product.description ?? '', image_url: product.imageUrl ?? '',
+      user_id: user.id,
     }).select().single();
     if (error || !data) { console.error('addProduct error', error); return null; }
 
@@ -160,9 +163,9 @@ export function useInventory() {
     const variant = product?.variants.find(v => v.id === variantId);
     if (product && variant) {
       if (quantity === 0) {
-        await from('alerts').insert({ type: 'out_of_stock', message: `${product.name} - ${variant.color} ${variant.size} está esgotado`, product_id: productId, product_name: product.name, reference: product.reference });
+        await from('alerts').insert({ type: 'out_of_stock', message: `${product.name} - ${variant.color} ${variant.size} está esgotado`, product_id: productId, product_name: product.name, reference: product.reference, user_id: (await supabase.auth.getUser()).data.user?.id });
       } else if (quantity < product.minStockThreshold) {
-        await from('alerts').insert({ type: 'low_stock', message: `${product.name} - ${variant.color} ${variant.size} com estoque baixo (${quantity}/${product.minStockThreshold} un.)`, product_id: productId, product_name: product.name, reference: product.reference });
+        await from('alerts').insert({ type: 'low_stock', message: `${product.name} - ${variant.color} ${variant.size} com estoque baixo (${quantity}/${product.minStockThreshold} un.)`, product_id: productId, product_name: product.name, reference: product.reference, user_id: (await supabase.auth.getUser()).data.user?.id });
       }
     }
   }, [products]);
@@ -177,6 +180,7 @@ export function useInventory() {
       if (!product || !variant) continue;
 
       let newStock = variant.currentStock;
+      const currentUserId = (await supabase.auth.getUser()).data.user?.id;
       if (type === 'IN') newStock += item.quantity;
       else if (type === 'OUT') newStock = Math.max(0, newStock - item.quantity);
       else newStock = Math.max(0, newStock + item.quantity);
@@ -186,23 +190,26 @@ export function useInventory() {
         variant_id: item.variantId, product_id: item.productId,
         product_name: product.name, variant_label: `${variant.color} ${variant.size}`,
         type, quantity: type === 'OUT' ? -item.quantity : item.quantity, reason,
+        user_id: currentUserId,
       });
 
       if (newStock === 0) {
-        await from('alerts').insert({ type: 'out_of_stock', message: `${product.name} - ${variant.color} ${variant.size} está esgotado`, product_id: product.id, product_name: product.name, reference: product.reference });
+        await from('alerts').insert({ type: 'out_of_stock', message: `${product.name} - ${variant.color} ${variant.size} está esgotado`, product_id: product.id, product_name: product.name, reference: product.reference, user_id: currentUserId });
       } else if (newStock < product.minStockThreshold) {
-        await from('alerts').insert({ type: 'low_stock', message: `${product.name} - ${variant.color} ${variant.size} com estoque baixo (${newStock}/${product.minStockThreshold} un.)`, product_id: product.id, product_name: product.name, reference: product.reference });
+        await from('alerts').insert({ type: 'low_stock', message: `${product.name} - ${variant.color} ${variant.size} com estoque baixo (${newStock}/${product.minStockThreshold} un.)`, product_id: product.id, product_name: product.name, reference: product.reference, user_id: currentUserId });
       }
     }
     await fetchAll();
   }, [products, fetchAll]);
 
   const registerSale = useCallback(async (sale: Omit<Sale, 'id' | 'createdAt'>) => {
+    const currentUserId = (await supabase.auth.getUser()).data.user?.id;
     const { data, error } = await from('sales').insert({
       subtotal: sale.subtotal, discount: sale.discount, total: sale.total,
       payment_method: sale.paymentMethod,
       cash_received: sale.cashReceived ?? null, change: sale.change ?? null,
       customer_name: sale.customerName ?? null,
+      user_id: currentUserId,
     }).select().single();
     if (error || !data) { console.error('registerSale error', error); return null; }
 
@@ -228,7 +235,8 @@ export function useInventory() {
   }, []);
 
   const addCategory = useCallback(async (name: string) => {
-    const { data, error } = await from('categories').insert({ name }).select().single();
+    const currentUserId = (await supabase.auth.getUser()).data.user?.id;
+    const { data, error } = await from('categories').insert({ name, user_id: currentUserId }).select().single();
     if (error) { console.error('addCategory error', error); return null; }
     setCategories(prev => [...prev, { id: data.id, name: data.name, createdAt: new Date(data.created_at) }].sort((a, b) => a.name.localeCompare(b.name)));
     return data;
@@ -253,7 +261,8 @@ export function useInventory() {
   }, [categories]);
 
   const addColor = useCallback(async (name: string, hex: string) => {
-    const { data, error } = await from('colors').insert({ name, hex }).select().single();
+    const currentUserId = (await supabase.auth.getUser()).data.user?.id;
+    const { data, error } = await from('colors').insert({ name, hex, user_id: currentUserId }).select().single();
     if (error) { console.error('addColor error', error); return null; }
     setColors(prev => [...prev, { id: data.id, name: data.name, hex: data.hex, createdAt: new Date(data.created_at) }].sort((a, b) => a.name.localeCompare(b.name)));
     return data;
@@ -273,7 +282,8 @@ export function useInventory() {
 
   // Sizes CRUD
   const addSize = useCallback(async (name: string, displayOrder: number) => {
-    const { data, error } = await from('sizes').insert({ name, display_order: displayOrder }).select().single();
+    const currentUserId = (await supabase.auth.getUser()).data.user?.id;
+    const { data, error } = await from('sizes').insert({ name, display_order: displayOrder, user_id: currentUserId }).select().single();
     if (error) { console.error('addSize error', error); return null; }
     setSizes(prev => [...prev, { id: data.id, name: data.name, displayOrder: data.display_order, createdAt: new Date(data.created_at) }].sort((a, b) => a.displayOrder - b.displayOrder));
     return data;
