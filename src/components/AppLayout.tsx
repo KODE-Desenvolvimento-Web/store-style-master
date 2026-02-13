@@ -12,14 +12,17 @@ import {
   Sun,
   Moon,
   Menu,
-  X
+  X,
+  LogOut,
+  Shield
 } from 'lucide-react';
 import { useInventoryContext } from '@/contexts/InventoryContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect } from 'react';
 import logo from '@/assets/logo.png';
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/produtos', icon: Package, label: 'Produtos' },
   { to: '/estoque', icon: Warehouse, label: 'Estoque' },
   { to: '/vendas', icon: ShoppingCart, label: 'Vendas' },
@@ -33,6 +36,7 @@ const navItems = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { unreadAlerts } = useInventoryContext();
+  const { signOut, isAdmin, profile } = useAuth();
   const [dark, setDark] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') === 'dark';
@@ -106,13 +110,34 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-sidebar-border space-y-3">
+        <div className="p-4 border-t border-sidebar-border space-y-2">
+          {profile && (
+            <div className="px-4 py-2">
+              <p className="text-xs text-sidebar-muted truncate">{profile.company_name || 'Minha Empresa'}</p>
+            </div>
+          )}
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              className="flex items-center gap-3 w-full px-4 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-all"
+            >
+              <Shield className="w-4 h-4" />
+              <span>Painel Admin</span>
+            </NavLink>
+          )}
           <button
             onClick={() => setDark(d => !d)}
             className="flex items-center gap-3 w-full px-4 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-all"
           >
             {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             <span>{dark ? 'Modo Claro' : 'Modo Escuro'}</span>
+          </button>
+          <button
+            onClick={signOut}
+            className="flex items-center gap-3 w-full px-4 py-2 rounded-lg text-sm text-destructive hover:bg-sidebar-accent transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sair</span>
           </button>
           <p className="text-xs text-sidebar-muted text-center">v2.0 — Stokk Pro</p>
         </div>
