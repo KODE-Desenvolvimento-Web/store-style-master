@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useInventoryContext } from '@/contexts/InventoryContext';
-import { SIZES, ProductVariant } from '@/types/inventory';
+import { ProductVariant } from '@/types/inventory';
 import { RefreshCw, Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -35,7 +35,7 @@ interface VariantDraft {
 }
 
 export default function AddProductDialog({ open, onOpenChange }: Props) {
-  const { addProduct, categories, colors } = useInventoryContext();
+  const { addProduct, categories, colors, sizes } = useInventoryContext();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -263,19 +263,22 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
           <div>
             <Label className="mb-2 block">Tamanhos</Label>
             <div className="flex flex-wrap gap-2">
-              {SIZES.map(size => (
+              {sizes.map(size => (
                 <button
-                  key={size}
-                  onClick={() => toggleSize(size)}
+                  key={size.id}
+                  onClick={() => toggleSize(size.name)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                    selectedSizes.includes(size)
+                    selectedSizes.includes(size.name)
                       ? 'bg-primary text-primary-foreground border-primary'
                       : 'bg-card border-border text-muted-foreground hover:border-primary/50'
                   }`}
                 >
-                  {size}
+                  {size.name}
                 </button>
               ))}
+              {sizes.length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhum tamanho cadastrado. Vá em Produtos → Tamanhos para adicionar.</p>
+              )}
             </div>
           </div>
 
