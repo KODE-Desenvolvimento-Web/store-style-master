@@ -17,12 +17,13 @@ export default function AdminPlans() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: profiles } = await from('profiles').select('plan, user_roles(role)');
-      if (!profiles) return;
-      const users = profiles.filter((p: any) => {
-        const roles = (p.user_roles ?? []).map((r: any) => r.role);
-        return !roles.includes('admin');
-      });
+      const [profilesRes, rolesRes] = await Promise.all([
+        from('profiles').select('plan'),
+        from('user_roles').select('user_id, role'),
+      ]);
+      if (!profilesRes.data) return;
+      const adminIds = new Set((rolesRes.data ?? []).filter((r: any) => r.role === 'admin').map((r: any) => r.user_id));
+      const users = profilesRes.data.filter((p: any) => !adminIds.has(p.id));
       const counts: Record<string, number> = {};
       users.forEach((u: any) => {
         const plan = u.plan || 'free';

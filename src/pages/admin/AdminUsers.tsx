@@ -50,13 +50,14 @@ export default function AdminUsers() {
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
-    const { data: profiles } = await from('profiles').select('*, user_roles(role)');
-    if (!profiles) return;
-
-    const userProfiles = profiles.filter((p: any) => {
-      const roles = (p.user_roles ?? []).map((r: any) => r.role);
-      return !roles.includes('admin');
-    });
+    const [profilesRes, rolesRes] = await Promise.all([
+      from('profiles').select('*'),
+      from('user_roles').select('user_id, role'),
+    ]);
+    const profiles = profilesRes.data ?? [];
+    const roles = rolesRes.data ?? [];
+    const adminIds = new Set(roles.filter((r: any) => r.role === 'admin').map((r: any) => r.user_id));
+    const userProfiles = profiles.filter((p: any) => !adminIds.has(p.id));
 
     // Fetch stats per user
     const mapped: CompanyUser[] = await Promise.all(
