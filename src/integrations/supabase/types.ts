@@ -24,6 +24,7 @@ export type Database = {
           read: boolean
           reference: string
           type: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -34,6 +35,7 @@ export type Database = {
           read?: boolean
           reference?: string
           type?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -44,6 +46,7 @@ export type Database = {
           read?: boolean
           reference?: string
           type?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -60,16 +63,19 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -79,18 +85,21 @@ export type Database = {
           hex: string
           id: string
           name: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           hex?: string
           id?: string
           name: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           hex?: string
           id?: string
           name?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -103,6 +112,7 @@ export type Database = {
           quantity: number
           reason: string
           type: string
+          user_id: string | null
           variant_id: string
           variant_label: string
         }
@@ -114,6 +124,7 @@ export type Database = {
           quantity?: number
           reason?: string
           type?: string
+          user_id?: string | null
           variant_id: string
           variant_label: string
         }
@@ -125,6 +136,7 @@ export type Database = {
           quantity?: number
           reason?: string
           type?: string
+          user_id?: string | null
           variant_id?: string
           variant_label?: string
         }
@@ -197,6 +209,7 @@ export type Database = {
           reference: string
           sale_price: number
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           brand: string
@@ -211,6 +224,7 @@ export type Database = {
           reference: string
           sale_price?: number
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           brand?: string
@@ -225,6 +239,46 @@ export type Database = {
           reference?: string
           sale_price?: number
           updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          cnpj: string | null
+          company_name: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          phone: string | null
+          plan: string | null
+          provider: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          cnpj?: string | null
+          company_name?: string
+          created_at?: string | null
+          id: string
+          is_active?: boolean | null
+          phone?: string | null
+          plan?: string | null
+          provider?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          cnpj?: string | null
+          company_name?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          phone?: string | null
+          plan?: string | null
+          provider?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -297,6 +351,7 @@ export type Database = {
           payment_method: string
           subtotal: number
           total: number
+          user_id: string | null
         }
         Insert: {
           cash_received?: number | null
@@ -308,6 +363,7 @@ export type Database = {
           payment_method?: string
           subtotal?: number
           total?: number
+          user_id?: string | null
         }
         Update: {
           cash_received?: number | null
@@ -319,6 +375,7 @@ export type Database = {
           payment_method?: string
           subtotal?: number
           total?: number
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -328,18 +385,39 @@ export type Database = {
           display_order: number
           id: string
           name: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           display_order?: number
           id?: string
           name: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           display_order?: number
           id?: string
           name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
         }
         Relationships: []
       }
@@ -351,7 +429,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -478,6 +556,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
