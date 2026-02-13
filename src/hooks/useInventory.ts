@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   Product, Alert, ProductVariant, InventoryLog, Sale,
   DbProduct, DbProductVariant, DbSale, DbSaleItem, DbInventoryLog, DbAlert,
-  Category, ColorItem,
+  Category, ColorItem, SizeItem,
 } from '@/types/inventory';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -65,11 +65,12 @@ export function useInventory() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [colors, setColors] = useState<ColorItem[]>([]);
+  const [sizes, setSizes] = useState<SizeItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [prodRes, varRes, alertRes, logRes, saleRes, siRes, catRes, colRes] = await Promise.all([
+    const [prodRes, varRes, alertRes, logRes, saleRes, siRes, catRes, colRes, sizeRes] = await Promise.all([
       from('products').select('*').order('created_at', { ascending: false }),
       from('product_variants').select('*'),
       from('alerts').select('*').order('created_at', { ascending: false }),
@@ -78,6 +79,7 @@ export function useInventory() {
       from('sale_items').select('*'),
       from('categories').select('*').order('name'),
       from('colors').select('*').order('name'),
+      from('sizes').select('*').order('display_order'),
     ]);
     setProducts((prodRes.data ?? []).map((p: DbProduct) => mapProduct(p, varRes.data ?? [])));
     setAlerts((alertRes.data ?? []).map((a: DbAlert) => mapAlert(a)));
@@ -85,6 +87,7 @@ export function useInventory() {
     setSales((saleRes.data ?? []).map((s: DbSale) => mapSale(s, siRes.data ?? [])));
     setCategories((catRes.data ?? []).map((c: { id: string; name: string; created_at: string }) => ({ id: c.id, name: c.name, createdAt: new Date(c.created_at) })));
     setColors((colRes.data ?? []).map((c: { id: string; name: string; hex: string; created_at: string }) => ({ id: c.id, name: c.name, hex: c.hex, createdAt: new Date(c.created_at) })));
+    setSizes((sizeRes.data ?? []).map((s: { id: string; name: string; display_order: number; created_at: string }) => ({ id: s.id, name: s.name, displayOrder: s.display_order, createdAt: new Date(s.created_at) })));
     setLoading(false);
   }, []);
 
@@ -268,6 +271,26 @@ export function useInventory() {
     return true;
   }, []);
 
+  // Sizes CRUD
+  const addSize = useCallback(async (name: string, displayOrder: number) => {
+    const { data, error } = await from('sizes').insert({ name, display_order: displayOrder }).select().single();
+    if (error) { console.error('addSize error', error); return null; }
+    setSizes(prev => [...prev, { id: data.id, name: data.name, displayOrder: data.display_order, createdAt: new Date(data.created_at) }].sort((a, b) => a.displayOrder - b.displayOrder));
+    return data;
+  }, []);
+
+  const deleteSize = useCallback(async (sizeId: string) => {
+    await from('sizes').delete().eq('id', sizeId);
+    setSizes(prev => prev.filter(s => s.id !== sizeId));
+  }, []);
+
+  const updateSize = useCallback(async (sizeId: string, name: string, displayOrder: number) => {
+    const { error } = await from('sizes').update({ name, display_order: displayOrder }).eq('id', sizeId);
+    if (error) { console.error('updateSize error', error); return null; }
+    setSizes(prev => prev.map(s => s.id === sizeId ? { ...s, name, displayOrder } : s).sort((a, b) => a.displayOrder - b.displayOrder));
+    return true;
+  }, []);
+
   const findByBarcode = useCallback((barcode: string): { product: Product; variant: ProductVariant } | null => {
     for (const product of products) {
       const variant = product.variants.find(v => v.barcode === barcode);
@@ -285,11 +308,12 @@ export function useInventory() {
   const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0);
 
   return {
-    products, alerts, inventoryLogs, sales, categories, colors, loading,
+    products, alerts, inventoryLogs, sales, categories, colors, sizes, loading,
     addProduct, updateProduct, deleteProduct, updateVariantStock, processOperation, registerSale,
     markAlertRead, markAllAlertsRead, findByBarcode, fetchAll,
     addCategory, deleteCategory, updateCategory,
     addColor, deleteColor, updateColor,
+    addSize, deleteSize, updateSize,
     totalProducts, totalItems, lowStockCount, outOfStockCount, unreadAlerts,
     todaySales, todayRevenue,
   };

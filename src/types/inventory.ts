@@ -155,6 +155,13 @@ export interface ColorItem {
   createdAt: Date;
 }
 
+export interface SizeItem {
+  id: string;
+  name: string;
+  displayOrder: number;
+  createdAt: Date;
+}
+
 export const SIZES = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'EG'] as const;
 export const COLORS = [
   { name: 'Branco', hex: '#FFFFFF' },
