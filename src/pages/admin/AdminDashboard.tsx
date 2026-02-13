@@ -19,15 +19,14 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const [profilesRes, productsRes, salesRes] = await Promise.all([
-        from('profiles').select('*, user_roles(role)'),
+      const [profilesRes, rolesRes, productsRes, salesRes] = await Promise.all([
+        from('profiles').select('*'),
+        from('user_roles').select('user_id, role'),
         from('products').select('id', { count: 'exact', head: true }),
         from('sales').select('total'),
       ]);
-      const users = (profilesRes.data ?? []).filter((p: any) => {
-        const roles = (p.user_roles ?? []).map((r: any) => r.role);
-        return !roles.includes('admin');
-      });
+      const adminIds = new Set((rolesRes.data ?? []).filter((r: any) => r.role === 'admin').map((r: any) => r.user_id));
+      const users = (profilesRes.data ?? []).filter((p: any) => !adminIds.has(p.id));
       const activeUsers = users.filter((u: any) => u.is_active);
       setStats({
         users: users.length,
