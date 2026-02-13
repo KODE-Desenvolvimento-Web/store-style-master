@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useInventoryContext } from '@/contexts/InventoryContext';
 import { ProductVariant } from '@/types/inventory';
-import { RefreshCw, Upload, X } from 'lucide-react';
+import { RefreshCw, Upload, X, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -35,7 +35,7 @@ interface VariantDraft {
 }
 
 export default function AddProductDialog({ open, onOpenChange }: Props) {
-  const { addProduct, categories, colors, sizes } = useInventoryContext();
+  const { addProduct, categories, colors, sizes, addCategory, addColor, addSize } = useInventoryContext();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -51,6 +51,15 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Inline creation states
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showNewColor, setShowNewColor] = useState(false);
+  const [newColorName, setNewColorName] = useState('');
+  const [newColorHex, setNewColorHex] = useState('#000000');
+  const [showNewSize, setShowNewSize] = useState(false);
+  const [newSizeName, setNewSizeName] = useState('');
+
   const toggleSize = (size: string) => {
     const next = selectedSizes.includes(size) ? selectedSizes.filter(s => s !== size) : [...selectedSizes, size];
     setSelectedSizes(next);
@@ -63,16 +72,16 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
     regenerateGrid(selectedSizes, next);
   };
 
-  const regenerateGrid = (sizes: string[], colors: string[]) => {
+  const regenerateGrid = (sizesArr: string[], colorsArr: string[]) => {
     const drafts: VariantDraft[] = [];
-    for (const color of colors) {
-      for (const size of sizes) {
-        const existing = variantDrafts.find(d => d.size === size && d.color === color);
+    for (const c of colorsArr) {
+      for (const s of sizesArr) {
+        const existing = variantDrafts.find(d => d.size === s && d.color === c);
         drafts.push(existing || {
-          size,
-          color,
+          size: s,
+          color: c,
           barcode: generateBarcode(),
-          sku: generateSku(category || 'PRD', color, size),
+          sku: generateSku(category || 'PRD', c, s),
           initialStock: 0,
         });
       }
@@ -125,6 +134,33 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
     return urlData.publicUrl;
   };
 
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    await addCategory(newCategoryName.trim());
+    setCategory(newCategoryName.trim());
+    setNewCategoryName('');
+    setShowNewCategory(false);
+    toast.success(`Categoria "${newCategoryName.trim()}" criada`);
+  };
+
+  const handleCreateColor = async () => {
+    if (!newColorName.trim()) return;
+    await addColor(newColorName.trim(), newColorHex);
+    setNewColorName('');
+    setNewColorHex('#000000');
+    setShowNewColor(false);
+    toast.success(`Cor "${newColorName.trim()}" criada`);
+  };
+
+  const handleCreateSize = async () => {
+    if (!newSizeName.trim()) return;
+    const maxOrder = sizes.length > 0 ? Math.max(...sizes.map(s => s.displayOrder)) : 0;
+    await addSize(newSizeName.trim(), maxOrder + 1);
+    setNewSizeName('');
+    setShowNewSize(false);
+    toast.success(`Tamanho "${newSizeName.trim()}" criado`);
+  };
+
   const handleSubmit = async () => {
     if (!name || !category || !brand || !salePrice || variantDrafts.length === 0) return;
 
@@ -161,7 +197,6 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
       variants,
     });
 
-    // Reset
     setName('');
     setDescription('');
     setCategory('');
@@ -233,15 +268,46 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
                 rows={3}
               />
             </div>
+
+            {/* Category with inline create */}
             <div>
-              <Label>Categoria</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between mb-1">
+                <Label>Categoria</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowNewCategory(!showNewCategory)}
+                  className="text-xs text-primary hover:underline flex items-center gap-0.5"
+                >
+                  <Plus className="w-3 h-3" /> Nova
+                </button>
+              </div>
+              {showNewCategory ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={newCategoryName}
+                    onChange={e => setNewCategoryName(e.target.value)}
+                    placeholder="Nome da categoria"
+                    className="flex-1"
+                    onKeyDown={e => e.key === 'Enter' && handleCreateCategory()}
+                    autoFocus
+                  />
+                  <Button size="sm" onClick={handleCreateCategory} disabled={!newCategoryName.trim()}>
+                    Criar
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+
             <div>
               <Label>Marca</Label>
               <Input value={brand} onChange={e => setBrand(e.target.value)} placeholder="Ex: Urban Style" />
@@ -260,8 +326,36 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
             </div>
           </div>
 
+          {/* Sizes with inline create */}
           <div>
-            <Label className="mb-2 block">Tamanhos</Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label>Tamanhos</Label>
+              <button
+                type="button"
+                onClick={() => setShowNewSize(!showNewSize)}
+                className="text-xs text-primary hover:underline flex items-center gap-0.5"
+              >
+                <Plus className="w-3 h-3" /> Novo
+              </button>
+            </div>
+            {showNewSize && (
+              <div className="flex gap-2 mb-2">
+                <Input
+                  value={newSizeName}
+                  onChange={e => setNewSizeName(e.target.value)}
+                  placeholder="Ex: GG, 44, XL..."
+                  className="flex-1"
+                  onKeyDown={e => e.key === 'Enter' && handleCreateSize()}
+                  autoFocus
+                />
+                <Button size="sm" onClick={handleCreateSize} disabled={!newSizeName.trim()}>
+                  Criar
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setShowNewSize(false); setNewSizeName(''); }}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               {sizes.map(size => (
                 <button
@@ -276,14 +370,48 @@ export default function AddProductDialog({ open, onOpenChange }: Props) {
                   {size.name}
                 </button>
               ))}
-              {sizes.length === 0 && (
-                <p className="text-xs text-muted-foreground">Nenhum tamanho cadastrado. Vá em Produtos → Tamanhos para adicionar.</p>
+              {sizes.length === 0 && !showNewSize && (
+                <p className="text-xs text-muted-foreground">Nenhum tamanho cadastrado. Clique em "+ Novo" para adicionar.</p>
               )}
             </div>
           </div>
 
+          {/* Colors with inline create */}
           <div>
-            <Label className="mb-2 block">Cores</Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label>Cores</Label>
+              <button
+                type="button"
+                onClick={() => setShowNewColor(!showNewColor)}
+                className="text-xs text-primary hover:underline flex items-center gap-0.5"
+              >
+                <Plus className="w-3 h-3" /> Nova
+              </button>
+            </div>
+            {showNewColor && (
+              <div className="flex gap-2 mb-2 items-center">
+                <Input
+                  value={newColorName}
+                  onChange={e => setNewColorName(e.target.value)}
+                  placeholder="Nome da cor"
+                  className="flex-1"
+                  onKeyDown={e => e.key === 'Enter' && handleCreateColor()}
+                  autoFocus
+                />
+                <input
+                  type="color"
+                  value={newColorHex}
+                  onChange={e => setNewColorHex(e.target.value)}
+                  className="w-9 h-9 rounded-lg border border-border cursor-pointer shrink-0"
+                />
+                <Button size="sm" onClick={handleCreateColor} disabled={!newColorName.trim()}>
+                  Criar
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setShowNewColor(false); setNewColorName(''); setNewColorHex('#000000'); }}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               {colors.map(color => (
                 <button
