@@ -45,6 +45,7 @@ export default function AdminUsers() {
   const [newProvider, setNewProvider] = useState('');
   const [creating, setCreating] = useState(false);
   const [editUser, setEditUser] = useState<CompanyUser | null>(null);
+  const [editPassword, setEditPassword] = useState('');
   const [detailUser, setDetailUser] = useState<CompanyUser | null>(null);
   const [cancelUserId, setCancelUserId] = useState<string | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
@@ -59,6 +60,29 @@ export default function AdminUsers() {
     const adminIds = new Set(roles.filter((r: any) => r.role === 'admin').map((r: any) => r.user_id));
     const userProfiles = profiles.filter((p: any) => !adminIds.has(p.id));
 
+    // Fetch emails from admin edge function
+    let emailMap: Record<string, string> = {};
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (token) {
+        const res = await supabase.functions.invoke('admin-update-user', {
+          headers: { Authorization: `Bearer ${token}` },
+          body: null,
+          method: 'GET',
+        });
+        // Use fetch directly for GET with query params
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-update-user?action=list`;
+        const listRes = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+        });
+        if (listRes.ok) {
+          const users = await listRes.json();
+          users.forEach((u: any) => { emailMap[u.id] = u.email; });
+        }
+      }
+    } catch {}
+
     // Fetch stats per user
     const mapped: CompanyUser[] = await Promise.all(
       userProfiles.map(async (p: any) => {
@@ -69,7 +93,7 @@ export default function AdminUsers() {
         const totalRevenue = (salesRes.data ?? []).reduce((s: number, r: any) => s + Number(r.total), 0);
         return {
           id: p.id,
-          email: '',
+          email: emailMap[p.id] || '',
           company_name: p.company_name,
           cnpj: p.cnpj,
           address: p.address,
@@ -172,13 +196,49 @@ export default function AdminUsers() {
 
   const handleUpdateUser = async () => {
     if (!editUser) return;
+    // Update profile data
     await from('profiles').update({
       company_name: editUser.company_name, cnpj: editUser.cnpj,
       address: editUser.address, phone: editUser.phone,
       plan: editUser.plan, provider: editUser.provider,
     }).eq('id', editUser.id);
+
+    // Update email/password via edge function if changed
+    const originalUser = users.find(u => u.id === editUser.id);
+    const emailChanged = originalUser && editUser.email && editUser.email !== originalUser.email;
+    const passwordChanged = editPassword.length > 0;
+
+    if (emailChanged || passwordChanged) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (token) {
+          const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-update-user?action=update`;
+          const body: any = { userId: editUser.id };
+          if (emailChanged) body.email = editUser.email;
+          if (passwordChanged) body.password = editPassword;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            toast.error(err.error || 'Erro ao atualizar credenciais');
+          }
+        }
+      } catch {
+        toast.error('Erro ao atualizar credenciais');
+      }
+    }
+
     toast.success('Empresa atualizada');
     setEditUser(null);
+    setEditPassword('');
     fetchUsers();
   };
 
@@ -250,7 +310,7 @@ export default function AdminUsers() {
               <tr key={u.id} className="border-t border-border/50 hover:bg-muted/30 transition-colors">
                 <td className="py-3 px-4">
                   <p className="font-medium">{u.company_name || 'Sem nome'}</p>
-                  <p className="text-xs text-muted-foreground">{u.provider || '—'}</p>
+                  <p className="text-xs text-muted-foreground">{u.email || u.provider || '—'}</p>
                 </td>
                 <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">{u.cnpj || '—'}</td>
                 <td className="py-3 px-4">
@@ -454,7 +514,7 @@ export default function AdminUsers() {
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={!!editUser} onOpenChange={open => { if (!open) setEditUser(null); }}>
+      <Dialog open={!!editUser} onOpenChange={open => { if (!open) { setEditUser(null); setEditPassword(''); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-heading">Editar Empresa</DialogTitle>
@@ -465,6 +525,14 @@ export default function AdminUsers() {
                 <div className="col-span-2">
                   <Label>Nome da Empresa</Label>
                   <Input value={editUser.company_name} onChange={e => setEditUser({ ...editUser, company_name: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Email de Acesso</Label>
+                  <Input type="email" value={editUser.email} onChange={e => setEditUser({ ...editUser, email: e.target.value })} placeholder="email@empresa.com" />
+                </div>
+                <div>
+                  <Label>Nova Senha</Label>
+                  <Input type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="Deixe vazio para manter" />
                 </div>
                 <div>
                   <Label>CNPJ</Label>
